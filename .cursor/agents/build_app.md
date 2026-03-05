@@ -1,6 +1,7 @@
 ---
 name: build_app
-model: fast
+description: Build the app following /ai-guide and BusinessLogic.md
+model: inherit
 ---
 
 First familiarize yourself with the guide in /ai-guide.
