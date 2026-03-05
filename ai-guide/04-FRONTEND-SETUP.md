@@ -172,6 +172,22 @@ FRONTEND_PORT=5173
 > **Note:** Keep this URL aligned with issuer configuration in `ENGINE_ALLOWED_ISSUERS` and
 > `READ_MODEL_ALLOWED_ISSUERS` to avoid post-login 503/JWKS failures.
 
+### Local Frontend + Docker Backend (Important)
+
+If frontend runs locally (`npm run dev`) and Keycloak/engine run in Docker:
+
+- Keep frontend app URL local (`FRONTEND_URL=http://localhost:<port>`).
+- Use a Keycloak URL reachable by both browser and containers:
+  - `.env` and `frontend/.env.local`: `VITE_KEYCLOAK_URL=http://host.docker.internal:11000`
+  - `docker-compose.yml` (`keycloak`): `KC_HOSTNAME=host.docker.internal`
+- Include all expected issuers in backend:
+  - `ENGINE_ALLOWED_ISSUERS`: `keycloak`, `localhost`, `host.docker.internal`
+  - `READ_MODEL_ALLOWED_ISSUERS`: same issuer hosts
+- After auth hostname changes, recreate services:
+  - `docker compose up -d --force-recreate keycloak engine read-model nginx-proxy`
+
+If you see `Failed to retrieve JWKS for http://localhost:11000/...`, treat it as issuer/host mismatch and fix auth config before continuing frontend work.
+
 ### Why Port 12001 Instead of 12000?
 
 The Noumena engine (port 12000) has strict CORS filtering that rejects cross-origin requests from the frontend. The nginx proxy (port 12001) adds proper CORS headers to all responses, allowing the frontend to communicate with the backend.
@@ -348,6 +364,16 @@ For reference, the NPL Engine uses this path format internally:
 But you should **never need to construct these paths manually** - the generated client handles this.
 
 See [14-TROUBLESHOOTING.md](./14-TROUBLESHOOTING.md) for more details on API issues.
+
+### Generated Client Pitfalls (Important)
+
+- Do not assume wrapper names from templates (for example `GoldBarApi`) exist in generated files.
+  - Generated code may expose `DefaultApi` (or service classes) only.
+- Build a thin local wrapper over generated client methods if you need stable app-level APIs.
+- Use generated field names exactly (`@id`, flattened properties, action command names).
+- For protocol creation, always include `@parties` in request payload.
+  - With party automation in `rules.yml`, default to empty object: `"@parties": {}`
+  - Avoid injecting fallback explicit parties unless business logic requires it, or you risk party arity errors.
 
 ---
 

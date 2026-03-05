@@ -269,13 +269,13 @@ frontend:
 
 #### 10.2: Configure Engine Allowed Issuers (2 minutes)
 
-**Action:** Update `docker-compose.yml` to include both Docker network and localhost URLs:
+**Action:** Update `docker-compose.yml` to include Docker network, localhost, and host-gateway URLs:
 
 ```yaml
-ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM}
+ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
 ```
 
-**Why:** Frontend (browser) uses `localhost` to access Keycloak, but engine needs to accept tokens from both URLs.
+**Why:** Frontend/browser and Docker services may see different hosts for Keycloak. Engine must accept all expected issuers.
 
 **Reference:** [14-TROUBLESHOOTING.md](./14-TROUBLESHOOTING.md#43-engine-rejects-jwt-tokens-401-unauthorized)
 
@@ -292,6 +292,8 @@ engine:
 **Why:** Dev mode runs an embedded OIDC server on port 11000 which conflicts with external Keycloak.
 
 **Reference:** [14-TROUBLESHOOTING.md](./14-TROUBLESHOOTING.md#46-failed-to-retrieve-jwks-error)
+
+> For local-frontend/Docker-backend auth hostname caveats and JWKS issuer mismatch handling, see `04-FRONTEND-SETUP.md`.
 
 #### 10.4: Keycloak Theme Customization (10-15 minutes) ⚠️ MANDATORY
 
