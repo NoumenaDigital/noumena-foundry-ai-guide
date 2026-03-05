@@ -456,3 +456,34 @@ A **complete, production-ready application** with:
 - Proper error handling
 
 All generated from NPL protocols and this guide!
+
+## Out-of-Box Completion Gates (Mandatory)
+
+Do not mark setup complete until all gates pass:
+
+1. **Health gates**
+   - `engine` health endpoint returns `UP`
+   - `keycloak` is healthy
+   - `rabbitmq` is healthy
+   - `nginx-proxy` is reachable
+2. **Provisioning gate**
+   - `keycloak-provisioning` finished as one-shot with `Exited (0)`
+3. **Auth gates**
+   - password grant returns non-empty access token
+   - protected `/npl/<package>/<Protocol>/` call succeeds with bearer token
+4. **Frontend gates**
+   - login redirect works without malformed `undefined/protocol/openid-connect` URL
+   - protected route loads without 503
+   - public explorer route remains public
+
+## Agent Do/Don't (Predictable Behavior)
+
+**Do:**
+- Follow deterministic order: `infra -> provision -> npl-deploy -> generate-api -> frontend -> verify-auth`
+- Keep Keycloak/frontend envs aligned and non-empty before auth flow
+- Treat provisioning as successful when container exits with code 0
+
+**Don't:**
+- Do not declare success before auth token + protected API checks pass
+- Do not assume `keycloak-provisioning` must stay running
+- Do not proceed with frontend page work while Keycloak env values are unresolved

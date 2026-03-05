@@ -261,6 +261,47 @@ A **complete, production-ready application** with:
 
 All generated from your `BusinessLogic.md` file and this guide!
 
+### Out-of-Box First Run (Agent Runbook)
+
+Use this exact sequence from repository root:
+
+1. Start core infrastructure:
+   - `make infra`
+2. Run one-shot Keycloak provisioning (expected terminal result: success, container exits):
+   - `make provision`
+3. Build/deploy NPL package:
+   - `make npl-deploy`
+4. Generate frontend API client:
+   - `make generate-api`
+5. Start frontend:
+   - `make frontend`
+6. Verify auth + protected API:
+   - `make verify-auth`
+
+One-command path (runs full flow including auth verification):
+- `make up`
+
+### Expected Container States
+
+After successful setup, `docker compose ps` should show:
+- `engine` healthy
+- `keycloak` healthy
+- `rabbitmq` healthy
+- `nginx-proxy` running
+- `keycloak-provisioning` `Exited (0)` (this is expected for one-shot provisioning)
+
+### Run Sequence (strict phase order)
+
+1. Infrastructure + provisioning:
+   - `make infra`
+   - `make provision`
+2. Backend deploy + API generation:
+   - `make npl-deploy`
+   - `make generate-api`
+3. Frontend + auth verification:
+   - `make frontend`
+   - `make verify-auth`
+
 ## License
 
 [Add your license information here]

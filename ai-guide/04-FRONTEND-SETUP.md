@@ -126,23 +126,30 @@ Install these dependencies:
 
 ## Environment Variables
 
-**IMPORTANT:** When running in Docker, environment variables are passed via `docker-compose.yml`, not a `.env` file in the frontend folder. The root `.env` file is for Docker Compose substitution only.
+**CRITICAL:** The frontend auth env values must be present and non-empty at runtime:
+
+- `VITE_KEYCLOAK_URL`
+- `VITE_NC_KC_REALM`
+- `VITE_NC_KC_CLIENT_ID`
+
+If any of these are missing/`undefined`, do not attempt login redirect. Fail fast with a visible configuration error.
+
+Use one canonical local auth path:
+- `VITE_KEYCLOAK_URL=http://host.docker.internal:11000`
+- Realm/client both set to the app slug (for this repo: `goldprovenance`)
 
 ### For Docker Development (Recommended)
 
 Configure environment in `docker-compose.yml`:
-
-> **Note:** `VITE_NC_KC_REALM` and `VITE_NC_KC_CLIENT_ID` are hardcoded to the app slug during
-> project setup (e.g., `wine`). They do not reference `.env` variables.
 
 ```yaml
 frontend:
   environment:
     # CRITICAL: Use nginx proxy (12001) for CORS support, NOT direct engine (12000)
     VITE_ENGINE_URL: http://localhost:12001
-    VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://keycloak:11000}
-    VITE_NC_KC_REALM: wine          # Hardcoded to app slug
-    VITE_NC_KC_CLIENT_ID: wine      # Hardcoded to app slug
+    VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
+    VITE_NC_KC_REALM: ${VITE_NC_KC_REALM}
+    VITE_NC_KC_CLIENT_ID: ${VITE_NC_KC_CLIENT_ID}
 ```
 
 ### For Local Development (without Docker)
@@ -152,20 +159,18 @@ Create a `.env` file in the `frontend/` directory:
 ```env
 # API Configuration - Use nginx proxy for CORS support
 VITE_ENGINE_URL=http://localhost:12001
-# Browser-accessible Keycloak URL (via Docker port mapping on localhost)
-VITE_KEYCLOAK_URL=http://localhost:11000
+# Canonical local issuer URL
+VITE_KEYCLOAK_URL=http://host.docker.internal:11000
 # Keycloak realm and client ID — must match the app slug
-VITE_NC_KC_REALM=wine
-VITE_NC_KC_CLIENT_ID=wine
+VITE_NC_KC_REALM=goldprovenance
+VITE_NC_KC_CLIENT_ID=goldprovenance
 
 # Frontend
 FRONTEND_PORT=5173
 ```
 
-> **Note:** No `/etc/hosts` entry is needed. Keycloak is configured with `--hostname-strict=false`
-> and no explicit `--hostname`, so it dynamically uses the request's Host header. The browser
-> accesses Keycloak via `localhost:11000` (Docker port mapping), and Keycloak responds with
-> `localhost`-based URLs. No hostname resolution workaround is required.
+> **Note:** Keep this URL aligned with issuer configuration in `ENGINE_ALLOWED_ISSUERS` and
+> `READ_MODEL_ALLOWED_ISSUERS` to avoid post-login 503/JWKS failures.
 
 ### Why Port 12001 Instead of 12000?
 
@@ -534,7 +539,16 @@ kc.init({
   });
 ```
 
-### Key Implementation Rules
+### Mandatory Guard: Block Redirect Loops on Bad Config
+
+Your `AuthProvider` must validate auth env values before `new Keycloak(...)` and before any `login()` call.
+
+Required behavior:
+- If required env is missing, set a `configError` state and render it.
+- Do **not** call `kc.init()` or `kc.login()` when config is invalid.
+- `ProtectedRoute` must show the config error and avoid auto-redirect.
+
+### Key Implementation Rules (Non-Optional)
 
 1. **Use `initializingRef`** — Add a `useRef(false)` to prevent React StrictMode from initializing Keycloak twice:
    ```typescript
@@ -554,6 +568,7 @@ kc.init({
 4. **Set `checkLoginIframe: false`** — Avoids iframe-related issues
 
 5. **Use `silentCheckSsoRedirectUri`** — Points to the silent-check-sso.html file
+6. **Fail fast on bad env** — Never allow `undefined/protocol/openid-connect` redirects
 
 ### How It Works
 
@@ -897,6 +912,16 @@ axios.interceptors.request.use(...);
 ```
 
 See [10-CODE-TEMPLATES.md](./10-CODE-TEMPLATES.md) for the complete ServiceProvider implementation.
+
+## Completion Gates (Must Pass)
+
+Before declaring frontend/auth setup complete:
+
+1. `VITE_KEYCLOAK_URL`, `VITE_NC_KC_REALM`, `VITE_NC_KC_CLIENT_ID` are non-empty in running frontend.
+2. Login starts without malformed `.../undefined/protocol/openid-connect/...` URL.
+3. Browser requests to `/npl/...` include `Authorization: Bearer <token>`.
+4. `/bars` loads without 503 after login.
+5. Public `/explorer` route remains accessible without login.
 
 ## Next Steps
 

@@ -409,6 +409,46 @@ engine:
 ### Issue: Keycloak authentication fails
 **Solution:** Verify realm and client ID match, check Keycloak logs
 
+## Final Acceptance Gates (Required)
+
+Before saying "setup complete", verify all of the following:
+
+1. **Health**
+   - `docker compose ps` shows `engine`, `keycloak`, `rabbitmq` healthy
+   - `nginx-proxy` is running/reachable
+2. **Provisioning**
+   - `keycloak-provisioning` completed one-shot as `Exited (0)`
+3. **Token**
+   - password grant returns non-empty `access_token`
+4. **Protected API**
+   - bearer-authenticated call to `/npl/<package>/<Protocol>/` succeeds
+5. **Frontend**
+   - login redirect succeeds
+   - protected route loads without 503
+   - public explorer page remains public
+
+Recommended command sequence:
+
+```bash
+make infra
+make provision
+make npl-deploy
+make generate-api
+make frontend
+make verify-auth
+```
+
+## Agent Do/Don't
+
+**Do**
+- Keep Keycloak envs (`VITE_KEYCLOAK_URL`, `VITE_NC_KC_REALM`, `VITE_NC_KC_CLIENT_ID`) resolved before login.
+- Use auth verification checks before moving to frontend feature development.
+
+**Don't**
+- Do not treat running containers alone as completion.
+- Do not expect `keycloak-provisioning` to remain running.
+- Do not continue when auth envs are missing or produce `undefined` redirect URLs.
+
 ## Next Steps
 
 - **Customize UI:** Modify theme in `src/theme.ts`
