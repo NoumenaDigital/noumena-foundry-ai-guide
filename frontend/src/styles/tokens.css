@@ -1,0 +1,193 @@
+/* ==========================================================================
+   Noumena Digital — Design Tokens
+   Based on https://www.noumenadigital.com
+   ========================================================================== */
+
+:root {
+  /* -----------------------------------------------------------------------
+     Colors
+     ----------------------------------------------------------------------- */
+
+  /* Brand / Primary */
+  --nm-color-primary:          #120a4d;  /* Deep indigo — main brand color */
+  --nm-color-primary-dark:     #20127c;  /* Darker indigo — hover states */
+
+  /* Accents */
+  --nm-color-accent-teal:      #0bd2a2;  /* Vibrant teal-green — highlights, metrics */
+  --nm-color-accent-orange:    #fa8b45;  /* Warm orange — secondary emphasis */
+  --nm-color-accent-pink:      #dd2c8d;  /* Vivid pink — tertiary accent */
+
+  /* Neutrals */
+  --nm-color-black:            #000000;
+  --nm-color-gray-900:         #111827;
+  --nm-color-gray-800:         #1f2937;
+  --nm-color-gray-700:         #374151;
+  --nm-color-gray-600:         #4b5563;
+  --nm-color-gray-500:         #6b7280;
+  --nm-color-gray-400:         #9ca3af;
+  --nm-color-gray-300:         #d1d5db;
+  --nm-color-gray-200:         #e5e7eb;
+  --nm-color-gray-100:         #f3f4f6;
+  --nm-color-gray-50:          #f9fafb;
+  --nm-color-bg-light:         #f5f5f5;  /* noumena-bg-3 */
+  --nm-color-white:            #ffffff;
+
+  /* Semantic */
+  --nm-color-success:          #22c55e;
+  --nm-color-success-bg:       #22c55e33;
+  --nm-color-error:            #ef4444;
+  --nm-color-error-bg:         #ef444433;
+  --nm-color-warning:          #fa8b45;
+  --nm-color-info:             #0bd2a2;
+
+  /* Overlay */
+  --nm-color-overlay-light:    rgba(255, 255, 255, 0.1);   /* white/10 — glassmorphism */
+  --nm-color-overlay-subtle:   rgba(255, 255, 255, 0.05);  /* white/5  */
+  --nm-color-overlay-dark:     rgba(0, 0, 0, 0.2);
+
+  /* -----------------------------------------------------------------------
+     Typography
+     ----------------------------------------------------------------------- */
+  --nm-font-family:       "Inter", "Inter Fallback", system-ui, -apple-system, sans-serif;
+  --nm-font-mono:         ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Font sizes */
+  --nm-fs-xs:    0.75rem;    /* 12px */
+  --nm-fs-sm:    0.875rem;   /* 14px */
+  --nm-fs-base:  1rem;       /* 16px */
+  --nm-fs-lg:    1.125rem;   /* 18px */
+  --nm-fs-xl:    1.25rem;    /* 20px */
+  --nm-fs-2xl:   1.5rem;     /* 24px */
+  --nm-fs-3xl:   1.875rem;   /* 30px */
+  --nm-fs-4xl:   2.25rem;    /* 36px */
+  --nm-fs-5xl:   3rem;       /* 48px */
+
+  /* Line heights */
+  --nm-lh-none:     1;
+  --nm-lh-tight:    1.25;
+  --nm-lh-snug:     1.375;
+  --nm-lh-normal:   1.5;
+  --nm-lh-relaxed:  1.625;
+  --nm-lh-loose:    1.75;
+
+  /* Font weights */
+  --nm-fw-regular:   400;
+  --nm-fw-medium:    500;
+  --nm-fw-semibold:  600;
+  --nm-fw-bold:      700;
+  --nm-fw-extrabold: 800;
+
+  /* Letter spacing */
+  --nm-tracking-wide:   0.025em;
+  --nm-tracking-wider:  0.05em;
+
+  /* -----------------------------------------------------------------------
+     Spacing
+     ----------------------------------------------------------------------- */
+  --nm-space-0:    0;
+  --nm-space-0.5:  0.125rem;  /* 2px  */
+  --nm-space-1:    0.25rem;   /* 4px  */
+  --nm-space-2:    0.5rem;    /* 8px  */
+  --nm-space-3:    0.75rem;   /* 12px */
+  --nm-space-4:    1rem;      /* 16px */
+  --nm-space-5:    1.25rem;   /* 20px */
+  --nm-space-6:    1.5rem;    /* 24px */
+  --nm-space-8:    2rem;      /* 32px */
+  --nm-space-10:   2.5rem;    /* 40px */
+  --nm-space-12:   3rem;      /* 48px */
+  --nm-space-16:   4rem;      /* 64px */
+  --nm-space-20:   5rem;      /* 80px */
+  --nm-space-24:   6rem;      /* 96px */
+
+  /* -----------------------------------------------------------------------
+     Layout
+     ----------------------------------------------------------------------- */
+  --nm-max-w-sm:   24rem;   /* 384px  */
+  --nm-max-w-md:   28rem;   /* 448px  */
+  --nm-max-w-lg:   32rem;   /* 512px  */
+  --nm-max-w-xl:   36rem;   /* 576px  */
+  --nm-max-w-2xl:  42rem;   /* 672px  */
+  --nm-max-w-3xl:  48rem;   /* 768px  */
+  --nm-max-w-4xl:  56rem;   /* 896px  */
+  --nm-max-w-5xl:  64rem;   /* 1024px */
+  --nm-max-w-6xl:  72rem;   /* 1152px */
+  --nm-max-w-7xl:  80rem;   /* 1280px */
+
+  /* Breakpoints (for reference — use in @media queries) */
+  /* --nm-bp-sm:   640px  */
+  /* --nm-bp-md:   768px  */
+  /* --nm-bp-lg:   1024px */
+
+  /* -----------------------------------------------------------------------
+     Borders & Radius
+     ----------------------------------------------------------------------- */
+  --nm-border-width:     2px;
+  --nm-border-color:     var(--nm-color-gray-200);
+  --nm-radius-sm:        0.25rem;   /* 4px  */
+  --nm-radius-md:        0.375rem;  /* 6px  */
+  --nm-radius-DEFAULT:   0.5rem;    /* 8px  */
+  --nm-radius-lg:        0.75rem;   /* 12px */
+  --nm-radius-xl:        1rem;      /* 16px */
+  --nm-radius-2xl:       1.5rem;    /* 24px — used on cards */
+  --nm-radius-full:      9999px;
+
+  /* -----------------------------------------------------------------------
+     Shadows
+     ----------------------------------------------------------------------- */
+  --nm-shadow-sm:   0 1px 2px rgba(0, 0, 0, 0.05);
+  --nm-shadow:      0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --nm-shadow-lg:   0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+
+  /* -----------------------------------------------------------------------
+     Transitions
+     ----------------------------------------------------------------------- */
+  --nm-transition-fast:    0.15s ease;
+  --nm-transition-base:    0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --nm-transition-slow:    0.3s ease;
+
+  /* -----------------------------------------------------------------------
+     Z-Index Scale
+     ----------------------------------------------------------------------- */
+  --nm-z-dropdown:   10;
+  --nm-z-sticky:     20;
+  --nm-z-overlay:    30;
+  --nm-z-modal:      40;
+  --nm-z-toast:      50;
+
+  /* -----------------------------------------------------------------------
+     Semantic surface tokens (light mode defaults)
+     These are the tokens adaptive components should use.
+     Raw palette tokens (--nm-color-*) remain fixed in both modes.
+     Only these surface tokens swap when [data-theme="dark"] is applied.
+     ----------------------------------------------------------------------- */
+  --nm-surface-page:          var(--nm-color-white);       /* page / body background        */
+  --nm-surface-raised:        var(--nm-color-white);       /* cards, inputs, dropdowns      */
+  --nm-surface-sunken:        var(--nm-color-gray-50);     /* zebra rows, light sections    */
+  --nm-surface-border:        var(--nm-color-gray-200);    /* default borders               */
+  --nm-surface-border-subtle: var(--nm-color-gray-100);    /* light dividers                */
+  --nm-surface-hover:         var(--nm-color-gray-50);     /* subtle hover backgrounds      */
+  --nm-surface-text:          var(--nm-color-gray-900);    /* primary body / heading text   */
+  --nm-surface-text-muted:    var(--nm-color-gray-600);    /* secondary text, labels        */
+  --nm-surface-text-subtle:   var(--nm-color-gray-500);    /* placeholders, captions        */
+}
+
+/* ==========================================================================
+   Dark mode overrides
+   Applied when <html data-theme="dark"> is present.
+   Only semantic surface tokens are overridden here; palette tokens are fixed.
+   The footer, code blocks, and gradient sections use the dark palette
+   directly and therefore look correct in both themes without any changes.
+   ========================================================================== */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --nm-surface-page:          #0f172a;   /* deepest background (slate-950)  */
+  --nm-surface-raised:        #1e293b;   /* cards, inputs (slate-800)       */
+  --nm-surface-sunken:        #0f172a;   /* sunken / alternate (slate-950)  */
+  --nm-surface-border:        #334155;   /* borders (slate-700)             */
+  --nm-surface-border-subtle: #1e293b;   /* subtle dividers                 */
+  --nm-surface-hover:         #1e293b;   /* hover highlights                */
+  --nm-surface-text:          #f1f5f9;   /* primary text (slate-100)        */
+  --nm-surface-text-muted:    #94a3b8;   /* secondary text (slate-400)      */
+  --nm-surface-text-subtle:   #64748b;   /* captions / subtle (slate-500)   */
+}
