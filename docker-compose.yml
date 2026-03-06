@@ -1,8 +1,33 @@
 volumes:
   keycloak-db: { }
-  kc-provision-state: { }
+  kc-provision-state: { }  # Terraform state for keycloak-provisioning (persists between restarts)
 
 services:
+
+  # NPL Engine Database
+  engine-db:
+    image: postgres:14.4-alpine
+    mem_limit: 256m
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: engine
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      ENGINE_DB_USER: engine
+      ENGINE_DB_PASSWORD: secret
+      HISTORY_DB_USER: history
+      HISTORY_DB_PASSWORD: secret
+      READ_MODEL_DB_USER: read-model
+      READ_MODEL_DB_PASSWORD: secret
+    volumes:
+      - ./db_init/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 1s
+      timeout: 5s
+      retries: 50
+
   # NPL Engine
   engine:
     image: ghcr.io/noumenadigital/images/engine:${PLATFORM_VERSION}
@@ -10,7 +35,11 @@ services:
       context: npl
     ports:
       - "12000:12000"
+      - "12400:12400"
     environment:
+      # CRITICAL: Engine dev mode MUST be false when using external Keycloak
+      # When ENGINE_DEV_MODE=true, the engine runs an embedded OIDC server on port 11000
+      # This conflicts with external Keycloak and causes JWKS verification failures
       ENGINE_DEV_MODE: ${DEV_MODE:-false}
       ENGINE_DB_URL: "jdbc:postgresql://engine-db:5432/engine"
       ENGINE_DB_USER: engine
@@ -18,13 +47,11 @@ services:
       ENGINE_DB_HISTORY_USER: history
       ENGINE_DB_HISTORY_SCHEMA: history
       ENGINE_DB_READ_MODEL_USER: read-model
-      ENGINE_DB_READ_MODEL_PASSWORD: secret
       ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
       SWAGGER_ENGINE_URL: http://localhost:12000
       SWAGGER_SECURITY_AUTH_URL: http://localhost:11000/realms/${VITE_NC_KC_REALM}
       SWAGGER_SECURITY_CLIENT_ID: ${VITE_NC_KC_CLIENT_ID}
       ENGINE_NPL_MIGRATION_RUN_ONLY: local
-      FRONTEND_URL: ${FRONTEND_URL}
       AMQP_USERNAME: "${AMQP_USERNAME}"
       AMQP_PASSWORD: "${AMQP_PASSWORD}"
       AMQP_BROKER_URL: "amqp://${AMQP_HOST?}:${AMQP_PORT?}"
@@ -79,38 +106,14 @@ services:
       READ_MODEL_ENGINE_HEALTH_ENDPOINT: "http://engine:12000/actuator/health"
       READ_MODEL_ENGINE_HEALTH_TIMEOUT_SECONDS: 250
       READ_MODEL_ALLOWED_ISSUERS: >
-       http://keycloak:11000/realms/${VITE_NC_KC_REALM},
-       http://localhost:11000/realms/${VITE_NC_KC_REALM},
-       http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
+        http://keycloak:11000/realms/${VITE_NC_KC_REALM},
+        http://localhost:11000/realms/${VITE_NC_KC_REALM},
+        http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
     depends_on:
       engine-db:
         condition: service_started
       keycloak:
         condition: service_healthy
-
-  # Database
-  engine-db:
-    image: postgres:14.4-alpine
-    mem_limit: 256m
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: engine
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      ENGINE_DB_USER: engine
-      ENGINE_DB_PASSWORD: secret
-      HISTORY_DB_USER: history
-      HISTORY_DB_PASSWORD: secret
-      READ_MODEL_DB_USER: read-model
-      READ_MODEL_DB_PASSWORD: secret
-    volumes:
-      - ./db_init/db_init.sh:/docker-entrypoint-initdb.d/db_init.sh
-    healthcheck:
-      test: pg_isready -U postgres
-      interval: 1s
-      timeout: 5s
-      retries: 50
 
   # Keycloak Provisioning (runs after planning — not part of base infra)
   keycloak-provisioning:
@@ -134,10 +137,18 @@ services:
         condition: service_healthy
 
   # Keycloak
+  # NOTE: Keycloak takes 10-30 seconds to start (database migrations, realm init).
+  # The health check must include start_period to avoid premature failures.
+  # CRITICAL for LOCAL DEVELOPMENT:
+  #   - Use `start-dev` instead of `start` to disable HTTPS requirements
+  #   - The admin console REQUIRES SSL disabled even with start-dev for the master realm
+  #   - The provisioning script should disable SSL for master realm via API
   keycloak:
     image: ghcr.io/noumenadigital/packages/keycloak:latest
     build:
       context: keycloak
+    # Use start-dev for local development (disables HTTPS requirements for most features)
+    # For production, use 'start' with proper HTTPS/TLS configuration
     command: |
       start-dev
       --spi-events-listener-jboss-logging-success-level=info
@@ -160,17 +171,17 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: 11000
-      KC_HOSTNAME: host.docker.internal
-      KC_HOSTNAME_PORT: 11000
     depends_on:
       keycloak-db:
         condition: service_started
+    # NOTE: Keycloak health check uses curl (installed via multi-stage build in Dockerfile)
+    # Health endpoint is on port 11000, use localhost since check runs inside the container
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/11000"]
-      interval: 5s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:11000/health/ready"]
+      interval: 10s
+      timeout: 5s
       retries: 30
-      start_period: 45s
+      start_period: 60s
 
   # Keycloak Database
   keycloak-db:
@@ -188,13 +199,12 @@ services:
       timeout: 5s
       retries: 50
 
-
   # Nginx Proxy
   nginx-proxy:
     image: nginx:latest
     ports:
-      - "12001:12001"
-      - "15001:15001"
+      - "12001:12001"  # Gateway: Engine + GraphQL routing with SSE support
+      - "15001:15001"  # Direct GraphQL access for debugging
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -203,6 +213,7 @@ services:
       read-model:
         condition: service_started
 
+  # Frontend (production build served by nginx)
   frontend:
     build:
       context: frontend
