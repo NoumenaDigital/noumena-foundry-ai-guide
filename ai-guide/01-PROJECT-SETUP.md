@@ -38,7 +38,7 @@ project-root/
 ├── nginx/                      # Nginx proxy
 │   └── nginx.conf
 ├── db_init/                    # Database initialization
-│   └── db_init.sh
+│   └── db_init.sql
 └── rabbitmq/                   # RabbitMQ configuration
     └── Dockerfile
 ```
@@ -125,15 +125,24 @@ This bypasses any global profiles and uses only Maven Central.
 
 ---
 
+## Canonical Local Auth Contract (Use This Exactly)
+
+Use one tested local auth contract across all files to avoid issuer/hostname drift:
+
+- Browser and frontend build use `VITE_KEYCLOAK_URL=http://host.docker.internal:11000`
+- Engine/read-model allow all local issuers used in practice:
+  - `http://keycloak:11000/realms/${VITE_NC_KC_REALM}`
+  - `http://localhost:11000/realms/${VITE_NC_KC_REALM}`
+  - `http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}`
+- Keycloak runs in dynamic hostname mode (`--hostname-strict=false`) with no explicit `KC_HOSTNAME`
+- `keycloak-provisioning` is a one-shot job and should end in `Exited (0)`
+
 ## Step 1: Create Docker Compose Configuration
 
 **File:** `docker-compose.yml`
 
-> **Important:** During project setup, `${VITE_NC_KC_REALM}` and `${VITE_NC_KC_CLIENT_ID}`
-> placeholders in the template below are replaced with the **literal app slug** (e.g., `wine`).
-> This means the Keycloak realm name and OIDC client ID are hardcoded into `docker-compose.yml`
-> and do **not** need to be configured in `.env`. The Terraform provisioner receives the realm
-> name via `TF_VAR_app_name`, which is also set to the literal app slug.
+> **Important:** Keep `VITE_NC_KC_REALM` and `VITE_NC_KC_CLIENT_ID` in root `.env` and use
+> them consistently across `docker-compose.yml`, frontend config, and provisioning.
 
 ```yaml
 volumes:
@@ -141,6 +150,31 @@ volumes:
   kc-provision-state: { }  # Terraform state for keycloak-provisioning (persists between restarts)
 
 services:
+
+  # NPL Engine Database
+  engine-db:
+    image: postgres:14.4-alpine
+    mem_limit: 256m
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: engine
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      ENGINE_DB_USER: engine
+      ENGINE_DB_PASSWORD: secret
+      HISTORY_DB_USER: history
+      HISTORY_DB_PASSWORD: secret
+      READ_MODEL_DB_USER: read-model
+      READ_MODEL_DB_PASSWORD: secret
+    volumes:
+      - ./db_init/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 1s
+      timeout: 5s
+      retries: 50
+
   # NPL Engine
   engine:
     image: ghcr.io/noumenadigital/images/engine:${PLATFORM_VERSION}
@@ -148,6 +182,7 @@ services:
       context: npl
     ports:
       - "12000:12000"
+      - "12400:12400"
     environment:
       # CRITICAL: Engine dev mode MUST be false when using external Keycloak
       # When ENGINE_DEV_MODE=true, the engine runs an embedded OIDC server on port 11000
@@ -159,15 +194,12 @@ services:
       ENGINE_DB_HISTORY_USER: history
       ENGINE_DB_HISTORY_SCHEMA: history
       ENGINE_DB_READ_MODEL_USER: read-model
-      ENGINE_DB_READ_MODEL_PASSWORD: secret
-      # CRITICAL: Include both Docker network URL and localhost URL
-      # Frontend (browser) uses localhost, but engine needs to accept both
-      ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM}
+      # CRITICAL: Allow the tested local issuer set
+      ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
       SWAGGER_ENGINE_URL: http://localhost:12000
       SWAGGER_SECURITY_AUTH_URL: http://localhost:11000/realms/${VITE_NC_KC_REALM}
       SWAGGER_SECURITY_CLIENT_ID: ${VITE_NC_KC_CLIENT_ID}
       ENGINE_NPL_MIGRATION_RUN_ONLY: local
-      FRONTEND_URL: ${FRONTEND_URL}
       AMQP_USERNAME: "${AMQP_USERNAME}"
       AMQP_PASSWORD: "${AMQP_PASSWORD}"
       AMQP_BROKER_URL: "amqp://${AMQP_HOST?}:${AMQP_PORT?}"
@@ -225,37 +257,14 @@ services:
       READ_MODEL_ENGINE_HEALTH_ENDPOINT: "http://engine:12000/actuator/health"
       READ_MODEL_ENGINE_HEALTH_TIMEOUT_SECONDS: 250
       READ_MODEL_ALLOWED_ISSUERS: >
-       http://keycloak:11000/realms/${VITE_NC_KC_REALM},
-       http://localhost:11000/realms/${VITE_NC_KC_REALM}
+        http://keycloak:11000/realms/${VITE_NC_KC_REALM},
+        http://localhost:11000/realms/${VITE_NC_KC_REALM},
+        http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
     depends_on:
       engine-db:
         condition: service_started
       keycloak:
         condition: service_healthy
-
-  # Database
-  engine-db:
-    image: postgres:14.4-alpine
-    mem_limit: 256m
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: engine
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      ENGINE_DB_USER: engine
-      ENGINE_DB_PASSWORD: secret
-      HISTORY_DB_USER: history
-      HISTORY_DB_PASSWORD: secret
-      READ_MODEL_DB_USER: read-model
-      READ_MODEL_DB_PASSWORD: secret
-    volumes:
-      - ./db_init/db_init.sh:/docker-entrypoint-initdb.d/db_init.sh
-    healthcheck:
-      test: pg_isready -U postgres
-      interval: 1s
-      timeout: 5s
-      retries: 50
 
   # Keycloak Provisioning
   keycloak-provisioning:
@@ -273,6 +282,8 @@ services:
       TF_VAR_app_name: ${VITE_NC_KC_REALM}
     volumes:
       - kc-provision-state:/state  # Persist Terraform state between restarts
+    profiles:
+      - app
     depends_on:
       keycloak:
         condition: service_healthy
@@ -341,7 +352,6 @@ services:
 
   # RabbitMQ
   rabbitmq:
-    image: ghcr.io/noumenadigital/your-app/rabbitmq:latest
     build:
       context: rabbitmq
     ports:
@@ -377,19 +387,17 @@ services:
     build:
       context: frontend
       dockerfile: Dockerfile
-      args:
-        # CRITICAL: VITE_* vars are baked into the bundle at build time.
-        # They MUST be passed as build args (not just environment vars).
-        VITE_NC_KC_REALM: ${VITE_NC_KC_REALM:-winecellar}
-        VITE_NC_KC_CLIENT_ID: ${VITE_NC_KC_CLIENT_ID:-winecellar}
-        VITE_LOCAL_API_URL: http://localhost:12001
-        VITE_LOCAL_KC_URL: ${VITE_KEYCLOAK_URL:-http://localhost:11000}
     ports:
-      - "${FRONTEND_PORT:-5173}:80"
+      - "${FRONTEND_PORT:-5173}:5173"
+    environment:
+      VITE_ENGINE_URL: ${VITE_ENGINE_URL}
+      VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
+      VITE_NC_KC_REALM: ${VITE_NC_KC_REALM}
+      VITE_NC_KC_CLIENT_ID: ${VITE_NC_KC_CLIENT_ID}
+      FRONTEND_PORT: ${FRONTEND_PORT}
     depends_on:
-      - engine
-      - read-model
-      - keycloak-provisioning
+      nginx-proxy:
+        condition: service_started
 ```
 
 ## Step 2: Create Environment Variables Template
@@ -409,8 +417,8 @@ services:
 PLATFORM_VERSION=2025.2.6
 
 # Frontend Configuration
-# Browser-accessible Keycloak URL (via Docker port mapping on localhost)
-VITE_KEYCLOAK_URL=http://localhost:11000
+# Canonical local issuer URL used by frontend and token issuer
+VITE_KEYCLOAK_URL=http://host.docker.internal:11000
 # Use nginx proxy (12001) for CORS support, NOT direct engine (12000)
 VITE_ENGINE_URL=http://localhost:12001
 FRONTEND_PORT=5173
@@ -447,10 +455,8 @@ DEV_MODE=false
 > VITE_CLOUD_AUTH_URL=https://keycloak-your-org-your-app.noumena.cloud
 > ```
 
-> **Note:** No `/etc/hosts` entry is needed. Keycloak is configured with `--hostname-strict=false`
-> and no explicit `--hostname`, so it dynamically uses the request's Host header. The browser
-> accesses Keycloak via `localhost:11000` (Docker port mapping), and Keycloak responds with
-> `localhost`-based URLs.
+> **Note:** Keep one canonical URL in frontend env and token issuer (`host.docker.internal` in this
+> setup), and allow it in engine/read-model issuer lists.
 
 ## Step 3: Create Makefile
 
@@ -791,26 +797,21 @@ COPY src/main/migration.yml /migrations/migration.yml
 COPY src/main/rules.yml /migrations/rules.yml
 ```
 
-## Step 5: Create Database Initialization Script
+## Step 5: Create Database Initialization SQL
 
-**File:** `db_init/db_init.sh`
+**File:** `db_init/db_init.sql`
 
-```bash
-#!/bin/bash
-set -e
+```sql
+CREATE USER engine WITH PASSWORD 'secret';
+CREATE USER history WITH PASSWORD 'secret';
+CREATE USER "read-model" WITH PASSWORD 'secret';
 
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-    CREATE USER engine WITH PASSWORD 'secret';
-    CREATE USER history WITH PASSWORD 'secret';
-    CREATE USER "read-model" WITH PASSWORD 'secret';
-    
-    GRANT ALL PRIVILEGES ON DATABASE engine TO engine;
-    GRANT ALL PRIVILEGES ON DATABASE engine TO history;
-    GRANT ALL PRIVILEGES ON DATABASE engine TO "read-model";
-EOSQL
+GRANT ALL PRIVILEGES ON DATABASE engine TO engine;
+GRANT ALL PRIVILEGES ON DATABASE engine TO history;
+GRANT ALL PRIVILEGES ON DATABASE engine TO "read-model";
 ```
 
-**Note:** The Makefile automatically ensures this script is executable before starting Docker services (via the `ensure-db-init-executable` target). No manual `chmod` is required when using `make up`, `make npl-docker`, or `make reset`.
+Use SQL init files mounted into `/docker-entrypoint-initdb.d/` as the canonical bootstrap path.
 
 ## Step 6: Create Nginx Configuration
 
@@ -914,17 +915,13 @@ http {
 **File:** `rabbitmq/Dockerfile`
 
 ```dockerfile
-FROM rabbitmq:3-management-alpine
+FROM rabbitmq:4.0-management-alpine
 
 COPY etc/rabbitmq.conf /etc/rabbitmq/rabbitmq.conf
 COPY etc/definitions.json /etc/rabbitmq/definitions.json
-COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
-
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["rabbitmq-server"]
 ```
+
+Do not add a custom RabbitMQ entrypoint for local setup.
 
 ### Definitions
 

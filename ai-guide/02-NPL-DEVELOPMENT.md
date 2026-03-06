@@ -80,7 +80,7 @@ npl/src/main/npl-1.0.0/
    use support.*;
    
    @api
-   protocol[pBuyer, pSeller] Order(...) { ... };
+   protocol[buyer, seller] Order(...) { ... };
    ```
 
 ### Example: E-Commerce Application
@@ -132,7 +132,7 @@ struct Item { ... };
 enum Status { ... };
 
 @api
-protocol[pOwner] Order(...) { ... };
+protocol[owner] Order(...) { ... };
 ```
 
 ❌ **Using dots in package names or filenames in import paths** - Causes compile errors
@@ -167,7 +167,7 @@ enum Status { ... };
 package orders
 use support.*;
 @api
-protocol[pOwner] Order(...) { ... };
+protocol[owner] Order(...) { ... };
 ```
 
 ### Support File Contents
@@ -340,7 +340,7 @@ package yourpackage
  * @param paramName Description of parameter
  */
 @api
-protocol[pParty1, pParty2] ProtocolName(
+protocol[party1, party2] ProtocolName(
     var param1: Text,
     var param2: Number
 ) {
@@ -367,13 +367,13 @@ protocol[pParty1, pParty2] ProtocolName(
 Parties in protocol signatures define **roles** in the system:
 
 ```npl
-protocol[pAdmin, pTrainer, pGuest] DogTraining(...)
+protocol[admin, trainer, guest] DogTraining(...)
 ```
 
 **Naming Convention:**
-- Prefix with `p` (e.g., `pAdmin`, `pTrainer`)
+- Use camelCase party names (e.g., `relationshipManager`)
 - Use descriptive names based on business context
-- These become Keycloak roles (prefix removed: `pAdmin` → `admin`)
+- These map directly to Keycloak role names
 
 **Example from Context:**
 ```
@@ -382,7 +382,7 @@ protocol[pAdmin, pTrainer, pGuest] DogTraining(...)
 
 **NPL Protocol:**
 ```npl
-protocol[pAdmin, pTrainer, pGuest] DogTraining(...)
+protocol[admin, trainer, guest] DogTraining(...)
 ```
 
 **Generated Keycloak Roles:**
@@ -396,7 +396,7 @@ Mark protocols with `@api` to generate API endpoints:
 
 ```npl
 @api
-protocol[pBank, pClient] Account(...)
+protocol[bank, client] Account(...)
 ```
 
 **What gets generated:**
@@ -418,7 +418,7 @@ NPL protocols should include **inline comments** that provide context for fronte
 Use **inline comments** directly after variable declarations:
 
 ```npl
-protocol[pBank, pClient] DogTraining(
+protocol[bank, client] DogTraining(
     // @frontend: Display as main title in detail page header
     var dogName: Text,
     
@@ -520,7 +520,7 @@ var id: Text
 Variables with the same section name are grouped together:
 
 ```npl
-protocol[pBank] Example(
+protocol[bank] Example(
     // @frontend: Display in "Basic Information" section
     var name: Text,
     
@@ -672,16 +672,16 @@ When a permission has **parameters**, you **cannot** use comma-separated parties
 
 ```npl
 // ❌ WRONG - Syntax error with parameters and multiple parties
-permission[pOwner, pTrainer] updateProgress(score: Number) | active {
+permission[owner, trainer] updateProgress(score: Number) | active {
     // ...
 };
 
 // ✅ CORRECT - Separate permissions for each party
-permission[pOwner] updateProgressAsOwner(score: Number) | active {
+permission[owner] updateProgressAsOwner(score: Number) | active {
     this.score = score;
 };
 
-permission[pTrainer] updateProgressAsTrainer(score: Number) | active {
+permission[trainer] updateProgressAsTrainer(score: Number) | active {
     this.score = score;
 };
 ```
@@ -690,7 +690,7 @@ permission[pTrainer] updateProgressAsTrainer(score: Number) | active {
 
 ```npl
 // ✅ CORRECT - No parameters, multiple parties allowed
-permission[pOwner] archive() | active {
+permission[owner] archive() | active {
     become archived;
 };
 ```
@@ -885,12 +885,12 @@ struct Item {
     price: Number
 };
 
-protocol[pOwner] Order(var items: List<Item>) {
+protocol[owner] Order(var items: List<Item>) {
     // ...
 };
 
 // ❌ WRONG - Type definition inside protocol
-protocol[pOwner] Order() {
+protocol[owner] Order() {
     struct Item { ... };  // Syntax error
 };
 ```
@@ -968,10 +968,10 @@ comments = comments.with(
 When accessing protocol variables within permissions, the `this.` prefix is **not required** (unlike languages like Java/TypeScript).
 
 ```npl
-protocol[pOwner] Example(var title: Text) {
+protocol[owner] Example(var title: Text) {
     private var updatedAt: DateTime = now();
     
-    permission[pOwner] updateTitle(newTitle: Text) | active {
+    permission[owner] updateTitle(newTitle: Text) | active {
         // ❌ WRONG - Unnecessary this. prefix
         this.title = newTitle;
         this.updatedAt = now();
@@ -1194,12 +1194,12 @@ var status = "pending";
 
 ```npl
 // ❌ WRONG - storing Party in a variable
-var creator: Party = pOwner;
+var creator: Party = owner;
 var participants = listOf<Party>();
 
 // ✅ CORRECT - use Party only in signatures
-protocol[pOwner, pManager] Task(...) {
-    permission[pOwner] doSomething() | active { ... };
+protocol[owner, manager] Task(...) {
+    permission[owner] doSomething() | active { ... };
 };
 ```
 
@@ -1209,12 +1209,12 @@ In obligations, the `otherwise` clause **MUST ONLY** contain a state transition.
 
 ```npl
 // ✅ CORRECT - otherwise only has a state transition
-obligation[pBuyer] makePayment() before deadline | pending {
+obligation[buyer] makePayment() before deadline | pending {
     // payment logic
 } otherwise become expired;
 
 // ❌ WRONG - otherwise contains logic other than state transition
-obligation[pBuyer] makePayment() before deadline | pending {
+obligation[buyer] makePayment() before deadline | pending {
     // payment logic
 } otherwise {
     notifyParties();
@@ -1334,7 +1334,7 @@ struct BottleEvent {
 };
 
 @api
-protocol[pOwner, pManager] Bottle(
+protocol[owner, manager] Bottle(
     var cellarId: Text,
     var bottleSizeLiters: Number,
     var purchasePrice: Optional<Number>,
@@ -1422,7 +1422,7 @@ init {
 
 ```npl
 @api
-protocol[pOwner] Order(
+protocol[owner] Order(
     var customerName: Text,
     var items: List<LineItem>
 ) {
@@ -1526,7 +1526,7 @@ var label = if (amount > 1000) { "premium"; } else { "standard"; };
 ```npl
 // ❌ WRONG - /** */ comments inside constructor parameters cause parser errors
 @api
-protocol[pOwner] Order(
+protocol[owner] Order(
     /** The customer's full name */
     var customerName: Text,
     /** Total order amount */
@@ -1535,7 +1535,7 @@ protocol[pOwner] Order(
 
 // ✅ CORRECT - use // line comments
 @api
-protocol[pOwner] Order(
+protocol[owner] Order(
     // The customer's full name
     var customerName: Text,
     // Total order amount
@@ -1647,8 +1647,8 @@ Collections of `Number`: `sum()`
 
 | Scenario | Syntax |
 |----------|--------|
-| Single party, no params | `permission[pOwner] action() \| state { ... };` |
-| Single party, with params | `permission[pOwner] action(param: Type) \| state { ... };` |
+| Single party, no params | `permission[owner] action() \| state { ... };` |
+| Single party, with params | `permission[owner] action(param: Type) \| state { ... };` |
 | Multi-party, no params | Create separate permissions OR use pipe in protocol signature |
 | Multi-party, with params | **Must** create separate permissions for each party |
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide explains how to **automatically generate Keycloak roles and users** based on the parties defined in your NPL protocols. The system analyzes all `@api` protocols to extract party names (like `pBank`, `pClient`, `pRelationshipManager`) and creates corresponding roles in Keycloak.
+This guide explains how to **automatically generate Keycloak roles and users** based on the parties defined in your NPL protocols. The system analyzes all `@api` protocols to extract party names (like `bank`, `client`, `relationshipManager`) and creates corresponding roles in Keycloak.
 
 > ⚠️ **MANDATORY: Keycloak Theme Customization**
 > 
@@ -22,17 +22,17 @@ This guide explains how to **automatically generate Keycloak roles and users** b
 In NPL, protocols declare parties in their signature:
 
 ```npl
-protocol[pBank, pClient, pRelationshipManager] DogTraining(...) {
+protocol[bank, client, relationshipManager] DogTraining(...) {
     // Protocol body
 }
 ```
 
-These parties (`pBank`, `pClient`, `pRelationshipManager`) represent **roles** in the system.
+These parties (`bank`, `client`, `relationshipManager`) represent **roles** in the system.
 
 ### Role Generation Strategy
 
 1. **Extract all unique parties** from all `@api` protocols
-2. **Create Keycloak roles** for each party (removing the `p` prefix)
+2. **Create Keycloak roles** for each party (party names map to role names)
 3. **Create demo users** for each role
 4. **Assign roles** to users
 
@@ -47,26 +47,26 @@ Scan all NPL files for protocol declarations:
 grep -r "protocol\[" npl/src/main/npl-1.0/
 
 # Example output:
-# protocol[pBank, pClient] DogTraining(...)
-# protocol[pBank, pRelationshipManager] Trainer(...)
-# protocol[pClient] TrainingSession(...)
+# protocol[bank, client] DogTraining(...)
+# protocol[bank, relationshipManager] Trainer(...)
+# protocol[client] TrainingSession(...)
 ```
 
 **Parties found:**
-- `pBank`
-- `pClient`
-- `pRelationshipManager`
+- `bank`
+- `client`
+- `relationshipManager`
 
 **Roles to create:**
-- `bank` (from `pBank`)
-- `client` (from `pClient`)
-- `relationshipManager` (from `pRelationshipManager`)
+- `bank` (from `bank`)
+- `client` (from `client`)
+- `relationshipManager` (from `relationshipManager`)
 
 ### Party Naming Convention
 
-- **Prefix `p`** is removed: `pBank` → `bank`
-- **CamelCase** is preserved: `pRelationshipManager` → `relationshipManager`
-- **Service parties** (like `pFMP`, `pExConvert`) can be treated as service accounts
+- Party identifiers use camelCase (e.g., `bank`, `relationshipManager`)
+- These map directly to Keycloak role names
+- **Service parties** (like `fmp`, `exConvert`) can be treated as service accounts
 
 ## Step 2: Generate Terraform Configuration
 
@@ -248,7 +248,7 @@ resource "keycloak_openid_user_attribute_protocol_mapper" "email" {
 For each party found in NPL protocols, generate:
 
 ```hcl
-# Role for 'bank' (from pBank)
+# Role for 'bank' (from bank)
 resource "keycloak_role" "bank_role" {
   realm_id    = keycloak_realm.realm.id
   name        = "bank"
@@ -311,11 +311,7 @@ function extractParties(nplDir) {
       const partyList = match[1];
       const partyNames = partyList.split(',').map(p => p.trim());
       partyNames.forEach(party => {
-        // Remove 'p' prefix if present
-        const roleName = party.startsWith('p') ? party.substring(1) : party;
-        // Convert to camelCase for role name
-        const normalizedRole = roleName.charAt(0).toLowerCase() + roleName.slice(1);
-        parties.add(normalizedRole);
+        parties.add(party);
       });
     }
   });
@@ -463,10 +459,10 @@ resource "keycloak_role" "guest_role" {
 
 ## Step 6: Service Account Roles
 
-For service parties (like `pFMP`, `pExConvert`), create service accounts:
+For service parties (like `fmp`, `exConvert`), create service accounts:
 
 ```hcl
-# Service role (from pFMP)
+# Service role (from fmp)
 resource "keycloak_role" "fmp_role" {
   realm_id    = keycloak_realm.realm.id
   name        = "fmp"
@@ -668,8 +664,8 @@ provider "keycloak" {
 
 **NPL Protocols:**
 ```npl
-protocol[pAdmin, pTrainer, pGuest] DogTraining(...)
-protocol[pAdmin, pTrainer] TrainingSession(...)
+protocol[admin, trainer, guest] DogTraining(...)
+protocol[admin, trainer] TrainingSession(...)
 ```
 
 **Generated Roles:**
@@ -681,9 +677,9 @@ protocol[pAdmin, pTrainer] TrainingSession(...)
 
 **NPL Protocols:**
 ```npl
-protocol[pBank, pClient] Account(...)
-protocol[pBank, pRelationshipManager] Product(...)
-protocol[pBank, pClient, pRelationshipManager] Offer(...)
+protocol[bank, client] Account(...)
+protocol[bank, relationshipManager] Product(...)
+protocol[bank, client, relationshipManager] Offer(...)
 ```
 
 **Generated Roles:**

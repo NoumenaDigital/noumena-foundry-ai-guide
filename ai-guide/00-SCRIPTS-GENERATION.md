@@ -42,8 +42,8 @@ List all entities that will become NPL protocols and frontend components.
 List all roles that will become Keycloak roles.
 
 **Example:**
-- Owner (pOwner)
-- Trainer (pTrainer)
+- Owner (owner)
+- Trainer (trainer)
 
 ### 2.3 Package Name
 Determine the NPL package name (typically derived from the app name).

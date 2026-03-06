@@ -228,6 +228,10 @@ These features are **REQUIRED** and must be implemented before the application i
 - **OpenAPI not generated** - Ensure `@api` annotations are present
 - **Frontend build fails** - Check Node.js version, verify dependencies
 - **Keycloak authentication fails** - Verify realm and client ID match
+- **"Missing Keycloak environment variables"** - Vite does not read the root `.env`. Create `frontend/.env` with the `VITE_*` variables (see `04-FRONTEND-SETUP.md`)
+- **CSP frame-ancestors error on login** - Do not use `silentCheckSsoRedirectUri` in `kc.init()`. Keycloak 19+ blocks iframes via CSP. See `04-FRONTEND-SETUP.md`
+- **401 "No Authorization header" after login** - The generated `OpenAPI.BASE` and `OpenAPI.TOKEN` must be set at module level, not in `useEffect`. Page-level API calls must be guarded with `if (!authenticated) return`. See `04-FRONTEND-SETUP.md`
+- **Keycloak provisioning shows empty logs / realm missing** - Run `make provision` after `make infra`. If Keycloak DB has stale data, wipe it: `docker compose stop keycloak keycloak-db && docker compose rm -f keycloak keycloak-db && docker volume rm <project>_keycloak-db <project>_kc-provision-state`, then restart and re-provision
 
 ## Example Usage
 
@@ -260,6 +264,47 @@ A **complete, production-ready application** with:
 - ✅ Custom Keycloak theme
 
 All generated from your `BusinessLogic.md` file and this guide!
+
+### Out-of-Box First Run (Agent Runbook)
+
+Use this exact sequence from repository root:
+
+1. Start core infrastructure:
+   - `make infra`
+2. Run one-shot Keycloak provisioning (expected terminal result: success, container exits):
+   - `make provision`
+3. Build/deploy NPL package:
+   - `make npl-deploy`
+4. Generate frontend API client:
+   - `make generate-api`
+5. Start frontend:
+   - `make frontend`
+6. Verify auth + protected API:
+   - `make verify-auth`
+
+One-command path (runs full flow including auth verification):
+- `make up`
+
+### Expected Container States
+
+After successful setup, `docker compose ps` should show:
+- `engine` healthy
+- `keycloak` healthy
+- `rabbitmq` healthy
+- `nginx-proxy` running
+- `keycloak-provisioning` `Exited (0)` (this is expected for one-shot provisioning)
+
+### Run Sequence (strict phase order)
+
+1. Infrastructure + provisioning:
+   - `make infra`
+   - `make provision`
+2. Backend deploy + API generation:
+   - `make npl-deploy`
+   - `make generate-api`
+3. Frontend + auth verification:
+   - `make frontend`
+   - `make verify-auth`
 
 ## License
 
