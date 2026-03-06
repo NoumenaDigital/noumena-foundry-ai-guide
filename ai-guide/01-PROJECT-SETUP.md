@@ -194,14 +194,12 @@ services:
       ENGINE_DB_HISTORY_USER: history
       ENGINE_DB_HISTORY_SCHEMA: history
       ENGINE_DB_READ_MODEL_USER: read-model
-      ENGINE_DB_READ_MODEL_PASSWORD: secret
       # CRITICAL: Allow the tested local issuer set
       ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
       SWAGGER_ENGINE_URL: http://localhost:12000
       SWAGGER_SECURITY_AUTH_URL: http://localhost:11000/realms/${VITE_NC_KC_REALM}
       SWAGGER_SECURITY_CLIENT_ID: ${VITE_NC_KC_CLIENT_ID}
       ENGINE_NPL_MIGRATION_RUN_ONLY: local
-      FRONTEND_URL: ${FRONTEND_URL}
       AMQP_USERNAME: "${AMQP_USERNAME}"
       AMQP_PASSWORD: "${AMQP_PASSWORD}"
       AMQP_BROKER_URL: "amqp://${AMQP_HOST?}:${AMQP_PORT?}"
