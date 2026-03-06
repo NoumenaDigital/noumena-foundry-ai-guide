@@ -20,7 +20,11 @@ Do **not** rely on browser redirect login-actions for this stack, because mixed 
 
 ## 1) Required Config (must exist before frontend auth)
 
-### 1.1 `.env`
+### 1.1 Root `.env` and `frontend/.env`
+
+**CRITICAL:** Vite only reads `.env` files from its own working directory. The root `.env` is NOT read by `npm run dev`. You MUST create both files.
+
+Root `.env`:
 
 ```env
 VITE_NC_KC_REALM=goldprovenance
@@ -30,6 +34,17 @@ VITE_ENGINE_URL=http://localhost:12001
 KC_INITIAL_USER_PASSWORD=welcome
 DEV_MODE=false
 ```
+
+`frontend/.env` (required for local dev server — copy the VITE_ vars):
+
+```env
+VITE_NC_KC_REALM=goldprovenance
+VITE_NC_KC_CLIENT_ID=goldprovenance
+VITE_KEYCLOAK_URL=http://host.docker.internal:11000
+VITE_ENGINE_URL=http://localhost:12001
+```
+
+Without `frontend/.env`, the app throws "Missing Keycloak environment variables." immediately on load.
 
 ### 1.2 `docker-compose.yml` (critical auth values)
 
@@ -328,8 +343,9 @@ export function configureApiClient(accessToken: string): void {
 
 ### 5.3 `frontend/src/App.tsx`
 
+**CRITICAL:** Call `configureApiClient` synchronously in the render body, not inside a `useEffect`. React runs children's effects before parents', so if you set the token in a `useEffect`, child components may fire API calls before the token is configured.
+
 ```tsx
-import { useEffect } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import { useAuth } from "./auth/AuthProvider";
 import { configureApiClient } from "./services/apiClient";
@@ -338,9 +354,8 @@ import { LoginPage } from "./components/LoginPage";
 export default function App() {
   const { status, accessToken } = useAuth();
 
-  useEffect(() => {
-    configureApiClient(accessToken);
-  }, [accessToken]);
+  // ✅ Synchronous — runs during render, before any child renders or fires effects
+  configureApiClient(accessToken);
 
   if (status === "loading") {
     return <Box sx={{ minHeight: "100vh", display: "grid", placeItems: "center" }}><CircularProgress /></Box>;
