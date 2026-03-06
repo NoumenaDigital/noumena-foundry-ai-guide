@@ -138,7 +138,7 @@ Given this protocol:
 
 ```npl
 @api
-protocol[pOwner, pManager, pUser, pGuest, pAuditor, pSysAdmin, pService] Wine(
+protocol[owner, manager, user, guest, auditor, sysAdmin, service] Wine(
     var cellarId: Text,
     var producer: Text,
     var vintage: Number,

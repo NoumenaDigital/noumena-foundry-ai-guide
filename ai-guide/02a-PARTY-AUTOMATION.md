@@ -26,7 +26,7 @@ Extracts party information from the authenticated user's JWT token.
 
 ```yaml
 winecellar.Wine:
-  pOwner:
+  owner:
     extract:
       claims:
         - preferred_username
@@ -42,7 +42,7 @@ Assigns a specific party with predefined claims.
 
 ```yaml
 winecellar.Wine:
-  pCellarManager:
+  cellarManager:
     set:
       claims:
         email:
@@ -58,7 +58,7 @@ winecellar.Wine:
 **Example - Generic "All Users" Access:**
 ```yaml
 winecellar.Bottle:
-  pUser:
+  user:
     set:
       claims:
         role:
@@ -72,7 +72,7 @@ Validates that required claims are present in the JWT token, but does not assign
 
 ```yaml
 winecellar.Wine:
-  pOwner:
+  owner:
     require:
       claims:
         role:
@@ -97,7 +97,7 @@ winecellar.Wine:
 
 package-name.ProtocolName:
   # For logged-in user party (extract uses LIST syntax)
-  pLoggedInParty:
+  loggedInParty:
     extract:
       claims:
         - claim-name-to-extract    # List item with "-"
@@ -107,7 +107,7 @@ package-name.ProtocolName:
           - required-value          # Required value(s)
 
   # For other parties (set uses OBJECT syntax)
-  pOtherParty:
+  otherParty:
     set:
       claims:
         claim-name:                 # Key with colon
@@ -117,7 +117,7 @@ package-name.ProtocolName:
 ### Schema Breakdown
 
 - **`package-name.ProtocolName`** - Fully qualified protocol name (e.g., `winecellar.Wine`)
-- **`party-name`** - Party name from protocol signature (e.g., `pOwner`, `pCellarManager`)
+- **`party-name`** - Party name from protocol signature (e.g., `owner`, `cellarManager`)
 - **`rule-type`** - One of `extract`, `set`, or `require`
 - **`claims`** - Authorization claims structure
 
@@ -130,7 +130,7 @@ package-name.ProtocolName:
 `extract` specifies **WHICH claims to extract** from the token. It uses a **list of claim names**:
 
 ```yaml
-pCustomer:
+customer:
   extract:
     claims:
       - roles                   # List item with "-" - just the claim NAME
@@ -142,7 +142,7 @@ pCustomer:
 `set` and `require` specify **WHAT VALUES** the claims should have. They use **key-value objects**:
 
 ```yaml
-pInternalEmployee:
+internalEmployee:
   set:
     claims:
       roles:                    # Claim name as KEY (with colon)
@@ -150,7 +150,7 @@ pInternalEmployee:
 ```
 
 ```yaml
-pCustomer:
+customer:
   require:
     claims:
       roles:                    # Claim name as KEY (with colon)
@@ -170,7 +170,7 @@ pCustomer:
 ```yaml
 issuetracker.Issue:
   # Logged-in user - EXTRACT their claims, REQUIRE specific role
-  pCustomer:
+  customer:
     extract:
       claims:
         - roles                   # LIST syntax - extract this claim
@@ -181,7 +181,7 @@ issuetracker.Issue:
           - customer
 
   # Other party - SET fixed claims for role-based access
-  pInternalEmployee:
+  internalEmployee:
     set:
       claims:
         roles:                    # OBJECT syntax - set value
@@ -189,8 +189,8 @@ issuetracker.Issue:
 ```
 
 **Key Points:**
-- `pCustomer` uses `extract` + `require`: "Get this user's claims, but only if they have the 'customer' role"
-- `pInternalEmployee` uses `set`: "Allow anyone with 'internal-employee' role to act as this party"
+- `customer` uses `extract` + `require`: "Get this user's claims, but only if they have the 'customer' role"
+- `internalEmployee` uses `set`: "Allow anyone with 'internal-employee' role to act as this party"
 - Only ONE `extract` per protocol - the logged-in user can only be assigned to one party
 
 ## Claims Must Match JWT Token Structure
@@ -241,12 +241,12 @@ See [03-KEYCLOAK-PROVISIONING.md](./03-KEYCLOAK-PROVISIONING.md) for how to conf
 ```yaml
 winecellar.Wine:
   # Logged-in user becomes the owner
-  pOwner:
+  owner:
     extract:
       claims:
         - preferred_username
   # Single known cellar manager - set with specific claims
-  pCellarManager:
+  cellarManager:
     set:
       claims:
         email:
@@ -262,12 +262,12 @@ winecellar.Wine:
 ```yaml
 winecellar.Bottle:
   # Logged-in user becomes the owner
-  pOwner:
+  owner:
     extract:
       claims:
         - preferred_username
   # Generic "all users" access - set with role only
-  pUser:
+  user:
     set:
       claims:
         role:
@@ -281,17 +281,17 @@ winecellar.Bottle:
 ```yaml
 winecellar.Wine:
   # Logged-in user becomes the owner
-  pOwner:
+  owner:
     extract:
       claims:
         - preferred_username
-  # pCellarManager NOT in rules.yml - must be passed via @parties in frontend
+  # cellarManager NOT in rules.yml - must be passed via @parties in frontend
 ```
 
 **Frontend:** Pass only parties NOT in rules.yml:
 ```typescript
 '@parties': {
-  pCellarManager: { claims: { email: [selectedManagerEmail] } }
+  cellarManager: { claims: { email: [selectedManagerEmail] } }
 }
 ```
 
@@ -300,25 +300,25 @@ winecellar.Wine:
 ```yaml
 winecellar.Bottle:
   # Logged-in user becomes the owner
-  pOwner:
+  owner:
     extract:
       claims:
         - preferred_username
   # Fixed cellar manager
-  pCellarManager:
+  cellarManager:
     set:
       claims:
         email:
           - manager@example.com
         role:
           - cellarManager
-  # pUser NOT in rules.yml - passed via frontend
+  # user NOT in rules.yml - passed via frontend
 ```
 
 **Frontend:** Pass only parties NOT in rules.yml:
 ```typescript
 '@parties': {
-  pUser: { claims: { email: [selectedUserEmail] } }
+  user: { claims: { email: [selectedUserEmail] } }
 }
 ```
 
@@ -330,7 +330,7 @@ Extract claims from the logged-in user, but require that certain claims have spe
 winecellar.Wine:
   # Extract email and role from logged-in user, but require role is "owner"
   # Only owners can create wines
-  pOwner:
+  owner:
     extract:
       claims:
         - email
@@ -352,7 +352,7 @@ winecellar.Wine:
 **Example - Multiple Role Options:**
 ```yaml
 winecellar.PremiumWine:
-  pOwner:
+  owner:
     extract:
       claims:
         - email
@@ -442,7 +442,7 @@ This is the most common pattern for business applications with two distinct user
 issuetracker.Issue:
   # Party 1: Logged-in user with role validation
   # Uses extract (LIST syntax) + require (OBJECT syntax)
-  pCustomer:
+  customer:
     extract:
       claims:
         - roles                   # Extract this claim from JWT
@@ -454,7 +454,7 @@ issuetracker.Issue:
 
   # Party 2: Role-based access for other users
   # Uses set (OBJECT syntax) - anyone with this role can access
-  pInternalEmployee:
+  internalEmployee:
     set:
       claims:
         roles:                    # Anyone with this claim...
@@ -462,11 +462,11 @@ issuetracker.Issue:
 ```
 
 **How it works:**
-1. `pCustomer`: The logged-in user's `roles` claim is extracted, and validated to contain `"customer"`
-2. `pInternalEmployee`: Any user with `roles` containing `"internal-employee"` can act as this party
+1. `customer`: The logged-in user's `roles` claim is extracted, and validated to contain `"customer"`
+2. `internalEmployee`: Any user with `roles` containing `"internal-employee"` can act as this party
 
 **Key Points:**
-- Only ONE `extract` - the logged-in user is assigned to `pCustomer`
+- Only ONE `extract` - the logged-in user is assigned to `customer`
 - Use `set` for the other party - this grants access based on role, not identity
 - `extract` uses LIST syntax (`- claim-name`)
 - `require` and `set` use OBJECT syntax (`claim-name:` then `- value`)
@@ -499,7 +499,7 @@ await api.createBottle({
     ...data,
     '@parties': {
       // Only pass parties NOT defined in rules.yml
-      pUser: { claims: { email: [selectedUserEmail] } }
+      user: { claims: { email: [selectedUserEmail] } }
     },
   },
 });
@@ -510,16 +510,16 @@ await api.createBottle({
 **❌ WRONG:** Passing parties that are already in `rules.yml` causes duplicate party errors:
 
 ```typescript
-// If rules.yml has extract for pOwner, this will cause errors:
+// If rules.yml has extract for owner, this will cause errors:
 '@parties': {
-  pOwner: { claims: { email: [userEmail] } }, // ❌ Duplicate!
+  owner: { claims: { email: [userEmail] } }, // ❌ Duplicate!
 }
 ```
 
 **✅ CORRECT:** Only pass parties NOT in `rules.yml`:
 
 ```typescript
-// If rules.yml handles pOwner, don't pass it:
+// If rules.yml handles owner, don't pass it:
 '@parties': {
   // Only parties NOT in rules.yml
 }
@@ -558,12 +558,12 @@ Is the party the logged-in user?
 
 winecellar.Wine:
   # Logged-in user becomes the owner
-  pOwner:
+  owner:
     extract:
       claims:
         - preferred_username
   # Single known cellar manager - set with specific claims
-  pCellarManager:
+  cellarManager:
     set:
       claims:
         email:
@@ -573,12 +573,12 @@ winecellar.Wine:
 
 winecellar.Bottle:
   # Logged-in user becomes the owner
-  pOwner:
+  owner:
     extract:
       claims:
         - preferred_username
   # Single known cellar manager - set with specific claims
-  pCellarManager:
+  cellarManager:
     set:
       claims:
         email:
@@ -586,7 +586,7 @@ winecellar.Bottle:
         role:
           - cellarManager
   # Generic "all users" access - set with role only (no email = accessible to anyone with 'user' role)
-  pUser:
+  user:
     set:
       claims:
         role:
@@ -594,7 +594,7 @@ winecellar.Bottle:
 
 winecellar.ConsumptionPolicy:
   # Logged-in user becomes the owner
-  pOwner:
+  owner:
     extract:
       claims:
         - preferred_username
@@ -621,14 +621,14 @@ Party automation rules are deployed via the migration process:
 
 ```yaml
 # ❌ WRONG - Using object syntax with extract
-pCustomer:
+customer:
   extract:
     claims:
       roles:                     # Wrong! extract uses list syntax
         - customer
 
 # ✅ CORRECT - extract uses list syntax
-pCustomer:
+customer:
   extract:
     claims:
       - roles                    # List item with "-"
@@ -636,13 +636,13 @@ pCustomer:
 
 ```yaml
 # ❌ WRONG - Using list syntax with set/require
-pEmployee:
+employee:
   set:
     claims:
       - internal-employee        # Wrong! set uses object syntax
 
 # ✅ CORRECT - set uses object syntax
-pEmployee:
+employee:
   set:
     claims:
       roles:                     # Key with colon
@@ -673,11 +673,11 @@ pEmployee:
 
 ```yaml
 # ❌ WRONG - extract assigns logged-in user to BOTH parties
-pCustomer:
+customer:
   extract:
     claims:
       - roles
-pEmployee:
+employee:
   extract:
     claims:
       - roles
@@ -687,7 +687,7 @@ pEmployee:
 
 ```yaml
 # ✅ CORRECT - logged-in user is customer, employees access via role
-pCustomer:
+customer:
   extract:
     claims:
       - roles
@@ -696,7 +696,7 @@ pCustomer:
     claims:
       roles:
         - customer
-pEmployee:
+employee:
   set:
     claims:
       roles:

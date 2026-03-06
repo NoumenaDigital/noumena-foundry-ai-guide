@@ -54,7 +54,7 @@ Read `spec/business-spec.json` to understand:
 List and read all `.npl` files under `npl/src/main/` to discover:
 - Protocol names and their package
 - Protocol parameters (constructor arguments with types)
-- Party declarations (e.g., `protocol[pOwner, pManager] ...`)
+- Party declarations (e.g., `protocol[owner, manager] ...`)
 - `require()` constraints that seed data must satisfy
 - State declarations and transitions
 - Permissions and their state constraints (which actions are available in which states)
@@ -120,10 +120,10 @@ Based on protocol dependencies (one protocol's creation may require another to e
 For each protocol to seed, determine which Keycloak user must authenticate:
 
 ```
-Protocol X (extract: pOwner requires role "owner")
+Protocol X (extract: owner requires role "owner")
   → Authenticate as: owner@test.com (has "owner" role)
 
-Protocol Y (extract: pClient requires role "client")  
+Protocol Y (extract: client requires role "client")  
   → Authenticate as: client1@test.com, client2@test.com (have "client" role)
 ```
 
@@ -344,7 +344,7 @@ data = {
     "field1": "value",
     "@parties": {
         # Only pass parties NOT defined in rules.yml
-        "pRecipient": {
+        "recipient": {
             "claims": {
                 "email": ["recipient@test.com"]
             }

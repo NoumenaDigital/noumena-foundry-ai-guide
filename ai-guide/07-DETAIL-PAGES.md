@@ -292,7 +292,7 @@ export const ProtocolNameDetailPage: React.FC = () => {
 ### Example NPL Protocol:
 
 ```npl
-protocol[pBank] DogTraining(
+protocol[bank] DogTraining(
     // @frontend: Display in "Basic Information" section
     // @frontend: Label: "Dog Name"
     var dogName: Text,

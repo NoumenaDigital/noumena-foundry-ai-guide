@@ -44,7 +44,7 @@ ProtocolNameCreationForm.tsx
 From the NPL protocol declaration:
 
 ```npl
-protocol[pBank, pClient] DogTraining(
+protocol[bank, client] DogTraining(
     var dogName: Text,              // Required text field
     var ownerName: Text,            // Required text field
     var ownerEmail: Text,           // Required email field

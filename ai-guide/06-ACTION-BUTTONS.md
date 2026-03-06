@@ -63,7 +63,7 @@ The `@actions` field determines button visibility:
 The NPL engine calculates `@actions` based on:
 1. **Current protocol state** - Which transitions are valid from this state
 2. **User's role/party membership** - Which parties the user belongs to
-3. **Permission definitions** - The `permission[pParty] action() | state` syntax
+3. **Permission definitions** - The `permission[party] action() | state` syntax
 
 **Never duplicate this logic in the frontend.** The backend already knows:
 - What state the protocol is in
@@ -122,14 +122,14 @@ For each `@api` permission/obligation in the protocol:
 
 ```npl
 @api
-permission[pBank] configureDog() | created {
+permission[bank] configureDog() | created {
     require(dogName.length() > 0, "Dog name must be set");
     require(ownerEmail.contains("@"), "Valid owner email required");
     become configured;
 };
 
 @api
-permission[pBank] updateProgress(progress: Number) | configured {
+permission[bank] updateProgress(progress: Number) | configured {
     require(progress >= 0 && progress <= 100, "Progress must be between 0 and 100");
     overallProgress = progress;
 };
@@ -536,7 +536,7 @@ This button demonstrates validation from NPL `require()` statements:
 **NPL Protocol:**
 ```npl
 @api
-permission[pOwner | pCellarManager] updateDrinkingWindow(
+permission[owner | cellarManager] updateDrinkingWindow(
     windowStart: Number,
     windowEnd: Number
 ) | active {
