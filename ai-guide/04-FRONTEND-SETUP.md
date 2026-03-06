@@ -427,6 +427,63 @@ Without this guard, the first render fires an unauthenticated request and the en
 
 ---
 
+---
+
+## Common Runtime Errors & Fixes
+
+### `Property '@parties' not provided` (500 on protocol creation)
+
+**Symptom:** Creating a protocol instance returns HTTP 500:
+```json
+{ "message": "Unknown exception: 'Property '@parties' not provided'" }
+```
+
+**Cause:** Every `POST` to create a protocol instance **must** include a `@parties` field in the request body, even when party automation (`rules.yml`) is configured to assign parties automatically.
+
+**Fix:** Always pass `"@parties": {}` in the creation payload. The party automation fills it in from the JWT — the field must be present but can be empty:
+
+```typescript
+// ❌ WRONG — missing @parties
+await api.createGoldBar({
+  requestBody: { serialNumber: 'GB-001', weightGrams: 1000, ... }
+});
+
+// ✅ CORRECT — include @parties even with party automation
+await api.createGoldBar({
+  requestBody: {
+    '@parties': {},          // required — party automation fills this from JWT
+    serialNumber: 'GB-001',
+    weightGrams: 1000,
+    // ... other fields
+  }
+});
+```
+
+Check the generated `GoldBar_Create` model (in `src/generated/models/`) — it should include `@parties` as a field. If you are constructing the payload manually, always include it.
+
+---
+
+### `pageSize` must be at least 1 and at most 100 (400 on list)
+
+**Symptom:** Fetching a protocol list returns HTTP 400:
+```
+IllegalArgumentException: `pageSize` must be at least 1 and at most 100.
+```
+
+**Cause:** The engine enforces a hard maximum of `pageSize=100`. Passing values higher than 100 (e.g. 200) will always fail.
+
+**Fix:** Keep `pageSize` at 100 or below:
+
+```typescript
+// ❌ WRONG
+api.getGoldBarList({ pageSize: 200, includeCount: true });
+
+// ✅ CORRECT
+api.getGoldBarList({ pageSize: 100, includeCount: true });
+```
+
+---
+
 ## Next Steps
 
 Run `make generate-api` before writing any page components, then proceed in order:
