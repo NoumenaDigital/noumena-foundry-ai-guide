@@ -150,6 +150,31 @@ volumes:
   kc-provision-state: { }  # Terraform state for keycloak-provisioning (persists between restarts)
 
 services:
+
+  # NPL Engine Database
+  engine-db:
+    image: postgres:14.4-alpine
+    mem_limit: 256m
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: engine
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      ENGINE_DB_USER: engine
+      ENGINE_DB_PASSWORD: secret
+      HISTORY_DB_USER: history
+      HISTORY_DB_PASSWORD: secret
+      READ_MODEL_DB_USER: read-model
+      READ_MODEL_DB_PASSWORD: secret
+    volumes:
+      - ./db_init/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 1s
+      timeout: 5s
+      retries: 50
+
   # NPL Engine
   engine:
     image: ghcr.io/noumenadigital/images/engine:${PLATFORM_VERSION}
@@ -157,6 +182,7 @@ services:
       context: npl
     ports:
       - "12000:12000"
+      - "12400:12400"
     environment:
       # CRITICAL: Engine dev mode MUST be false when using external Keycloak
       # When ENGINE_DEV_MODE=true, the engine runs an embedded OIDC server on port 11000
@@ -241,30 +267,6 @@ services:
         condition: service_started
       keycloak:
         condition: service_healthy
-
-  # Database
-  engine-db:
-    image: postgres:14.4-alpine
-    mem_limit: 256m
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: engine
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      ENGINE_DB_USER: engine
-      ENGINE_DB_PASSWORD: secret
-      HISTORY_DB_USER: history
-      HISTORY_DB_PASSWORD: secret
-      READ_MODEL_DB_USER: read-model
-      READ_MODEL_DB_PASSWORD: secret
-    volumes:
-      - ./db_init/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
-    healthcheck:
-      test: pg_isready -U postgres
-      interval: 1s
-      timeout: 5s
-      retries: 50
 
   # Keycloak Provisioning
   keycloak-provisioning:
