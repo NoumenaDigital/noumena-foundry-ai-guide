@@ -1,22 +1,5 @@
 # 04 - Frontend Setup
 
-## 🚨 CRITICAL PRINCIPLE: JWT Token Must Be Passed with ALL Backend Requests
-
-**THIS IS A CORNER PRINCIPLE - NEVER FORGET THIS:**
-
-**Every single API request to the backend MUST include the JWT bearer token in the Authorization header.**
-
-Without the token, you will get:
-- `401 Unauthorized` errors
-- `503 Service Unavailable` errors  
-- `"No Authorization header found on request"` errors
-
-**The ServiceProvider MUST use an axios interceptor to automatically add `Authorization: Bearer <token>` to ALL requests.**
-
-This is not optional. This is mandatory. See the "CRITICAL: API Authentication Headers" section below for implementation details.
-
----
-
 ## ⚠️ CRITICAL: You Must Complete Phase 1 First
 
 **This guide is for PHASE 2 of the development workflow.**
@@ -30,11 +13,9 @@ Before starting this guide, you MUST have completed Phase 1 (Backend):
 │ ✅ NPL protocols written with @api annotations                  │
 │ ✅ NPL compiled successfully: cd npl && mvn package             │
 │ ✅ OpenAPI exists: ls npl/target/generated-sources/openapi/     │
-│ ✅ Backend services running: make up                            │
+│ ✅ Backend services running: make infra && make provision       │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
-**If any of the above are not complete, STOP and complete Phase 1 first.**
 
 See [02-NPL-DEVELOPMENT.md](./02-NPL-DEVELOPMENT.md) for NPL development.
 
@@ -58,34 +39,30 @@ frontend/
 ├── tsconfig.json
 ├── vite.config.ts
 ├── index.html
-├── public/
-│   ├── silent-check-sso.html  # ⚠️ REQUIRED for Keycloak SSO
-│   └── (other static assets)
 └── src/
     ├── main.tsx                    # Entry point
     ├── App.tsx                     # Root component
-    ├── Router.tsx                   # Route definitions
+    ├── Router.tsx                  # Route definitions
     ├── ServiceProvider.tsx         # API service provider
     ├── AuthProvider.tsx            # Authentication provider
     ├── theme.ts                    # Material-UI theme
     ├── vite-env.d.ts               # Vite environment types
     ├── components/
-    │   ├── LandingPage.tsx         # Public landing page (outside AuthProvider)
     │   ├── shared/
-    │   │   ├── AuthenticatedApp.tsx  # Auth wrapper for protected routes
-    │   │   ├── Layout.tsx            # Main layout with sidebar
-    │   │   ├── ProtectedRoute.tsx    # Route protection component
-    │   │   └── ...                   # Other shared components
-    │   ├── overview-pages/         # Overview table pages
-    │   ├── detail-pages/           # Detail pages
-    │   ├── creation-forms/         # Creation forms
-    │   └── action-buttons/         # Action button library
+    │   │   ├── Layout.tsx          # Main layout with sidebar
+    │   │   ├── ProtectedRoute.tsx  # Route protection component
+    │   │   └── Header.tsx
+    │   └── pages/                  # Page components
     ├── hooks/                      # Custom React hooks
-    ├── utils/                       # Utility functions
-    ├── i18n/                        # Internationalization
-    └── generated/                   # Auto-generated from OpenAPI
-        ├── api.ts
-        └── models/
+    ├── i18n/                       # Internationalization
+    └── generated/                  # Auto-generated from OpenAPI — do not edit
+        ├── core/
+        │   ├── OpenAPI.ts
+        │   └── request.ts
+        ├── services/
+        │   └── DefaultService.ts
+        ├── models/
+        └── index.ts
 ```
 
 ## Package Dependencies
@@ -103,94 +80,64 @@ Install these dependencies:
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "react-hook-form": "^7.48.0",
-    "@react-keycloak/web": "^3.4.0",
     "keycloak-js": "^23.0.0",
-    "recharts": "^2.10.0",
     "react-i18next": "^13.5.0",
     "i18next": "^23.7.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
     "@vitejs/plugin-react": "^4.2.0",
     "typescript": "^5.3.0",
-    "vite": "^5.0.0",
-    "eslint": "^8.54.0",
-    "eslint-plugin-react": "^7.33.0",
-    "eslint-plugin-react-hooks": "^4.6.0"
+    "vite": "^5.0.0"
   }
 }
 ```
 
 ## Environment Variables
 
-**CRITICAL:** The frontend auth env values must be present and non-empty at runtime:
+Three variables are required at runtime:
 
-- `VITE_KEYCLOAK_URL`
-- `VITE_NC_KC_REALM`
-- `VITE_NC_KC_CLIENT_ID`
+| Variable | Value |
+|---|---|
+| `VITE_KEYCLOAK_URL` | `http://host.docker.internal:11000` |
+| `VITE_NC_KC_REALM` | your app slug (e.g. `goldprovenance`) |
+| `VITE_NC_KC_CLIENT_ID` | your app slug (e.g. `goldprovenance`) |
 
-If any of these are missing/`undefined`, do not attempt login redirect. Fail fast with a visible configuration error.
+`host.docker.internal` is used because Keycloak embeds this hostname in JWT tokens as the issuer. It must be resolvable by both the browser (Windows/Mac Docker Desktop resolves it to 127.0.0.1) and backend containers (Docker Desktop provides this DNS entry). Do not change it to `localhost` — that breaks token validation inside Docker containers.
 
-Use one canonical local auth path:
-- `VITE_KEYCLOAK_URL=http://host.docker.internal:11000`
-- Realm/client both set to the app slug (for this repo: `goldprovenance`)
+### Local dev (`npm run dev`)
 
-### For Docker Development (Recommended)
+**Vite does NOT read the root `.env`.** You MUST create a separate `frontend/.env`:
 
-Configure environment in `docker-compose.yml`:
+```env
+VITE_ENGINE_URL=http://localhost:12001
+VITE_KEYCLOAK_URL=http://host.docker.internal:11000
+VITE_NC_KC_REALM=goldprovenance
+VITE_NC_KC_CLIENT_ID=goldprovenance
+```
+
+Without this file the app throws "Missing Keycloak environment variables." on load.
+
+### Docker dev (`docker-compose`)
+
+Environment is passed via `docker-compose.yml` — no separate file needed:
 
 ```yaml
 frontend:
   environment:
-    # CRITICAL: Use nginx proxy (12001) for CORS support, NOT direct engine (12000)
-    VITE_ENGINE_URL: http://localhost:12001
+    VITE_ENGINE_URL: ${VITE_ENGINE_URL}
     VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
     VITE_NC_KC_REALM: ${VITE_NC_KC_REALM}
     VITE_NC_KC_CLIENT_ID: ${VITE_NC_KC_CLIENT_ID}
 ```
 
-### For Local Development (without Docker)
+Values come from the root `.env` which Docker Compose reads automatically.
 
-Create a `.env` file in the `frontend/` directory:
-
-```env
-# API Configuration - Use nginx proxy for CORS support
-VITE_ENGINE_URL=http://localhost:12001
-# Canonical local issuer URL
-VITE_KEYCLOAK_URL=http://host.docker.internal:11000
-# Keycloak realm and client ID — must match the app slug
-VITE_NC_KC_REALM=goldprovenance
-VITE_NC_KC_CLIENT_ID=goldprovenance
-
-# Frontend
-FRONTEND_PORT=5173
-```
-
-> **Note:** Keep this URL aligned with issuer configuration in `ENGINE_ALLOWED_ISSUERS` and
-> `READ_MODEL_ALLOWED_ISSUERS` to avoid post-login 503/JWKS failures.
-
-### Local Frontend + Docker Backend (Important)
-
-If frontend runs locally (`npm run dev`) and Keycloak/engine run in Docker:
-
-- Keep frontend app URL local (`FRONTEND_URL=http://localhost:<port>`).
-- Use a Keycloak URL reachable by both browser and containers:
-  - `.env` and `frontend/.env.local`: `VITE_KEYCLOAK_URL=http://host.docker.internal:11000`
-  - `docker-compose.yml` (`keycloak`): `KC_HOSTNAME=host.docker.internal`
-- Include all expected issuers in backend:
-  - `ENGINE_ALLOWED_ISSUERS`: `keycloak`, `localhost`, `host.docker.internal`
-  - `READ_MODEL_ALLOWED_ISSUERS`: same issuer hosts
-- After auth hostname changes, recreate services:
-  - `docker compose up -d --force-recreate keycloak engine read-model nginx-proxy`
-
-If you see `Failed to retrieve JWKS for http://localhost:11000/...`, treat it as issuer/host mismatch and fix auth config before continuing frontend work.
-
-### Why Port 12001 Instead of 12000?
-
-The Noumena engine (port 12000) has strict CORS filtering that rejects cross-origin requests from the frontend. The nginx proxy (port 12001) adds proper CORS headers to all responses, allowing the frontend to communicate with the backend.
+> **Why port 12001?** The engine (port 12000) has strict CORS filtering. The nginx proxy (port 12001) adds CORS headers. Always use 12001 for frontend API calls.
 
 ## Vite Configuration
 
@@ -204,13 +151,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: parseInt(process.env.FRONTEND_PORT || '5173'),
-    proxy: {
-      '/api': {
-        target: process.env.VITE_ENGINE_URL || 'http://localhost:12000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-    },
   },
   build: {
     outDir: 'dist',
@@ -247,23 +187,20 @@ Create `tsconfig.json`:
       "@/*": ["src/*"]
     }
   },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src"]
 }
 ```
 
 ### Vite Environment Types
 
-Create `src/vite-env.d.ts` to enable TypeScript support for `import.meta.env`:
+Create `src/vite-env.d.ts`:
 
 ```typescript
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_DEPLOYMENT_TARGET: string;
-  readonly VITE_NC_ORG_NAME: string;
-  readonly VITE_NC_APP_SLUG: string;
   readonly VITE_NC_KC_REALM: string;
+  readonly VITE_NC_KC_CLIENT_ID: string;
   readonly VITE_ENGINE_URL: string;
   readonly VITE_KEYCLOAK_URL: string;
 }
@@ -273,703 +210,229 @@ interface ImportMeta {
 }
 ```
 
-Also add `@types/node` to devDependencies in `package.json`:
-
-```json
-{
-  "devDependencies": {
-    "@types/node": "^20.10.0"
-  }
-}
-```
-
 ## Generated API Client
 
 ### How API Client Generation Works
 
-The TypeScript API client is generated from your compiled NPL protocols using two steps:
+The TypeScript API client is generated from your compiled NPL protocols:
 
-1. **Generate OpenAPI YAML** from NPL protocols using the NPL CLI:
-   ```bash
-   npl openapi --source-dir npl/src/main --output-dir npl/output
-   ```
+```bash
+make generate-api
+```
 
-2. **Generate TypeScript fetch client** from the OpenAPI spec:
-   ```bash
-   npx @openapitools/openapi-generator-cli generate \
-     -g typescript-fetch \
-     -i npl/output/<package>-openapi.yml \
-     -o frontend/src/generated
-   ```
-
-3. Output goes to `frontend/src/generated/`
-
-> **Tip:** You can add a `generate-api` Makefile target to automate this (see [01-PROJECT-SETUP.md](./01-PROJECT-SETUP.md)).
+This outputs to `frontend/src/generated/`. **Do not edit files in `src/generated/`** — they are overwritten on every regeneration.
 
 ### Generated Structure
-
-The OpenAPI client is generated into `src/generated/`:
 
 ```
 src/generated/
 ├── core/
-│   ├── OpenAPI.ts            # OpenAPI configuration
+│   ├── OpenAPI.ts            # OpenAPI configuration (BASE, TOKEN)
 │   └── request.ts            # HTTP request handler
 ├── services/
 │   └── DefaultService.ts     # All API methods
-├── models/
-│   ├── index.ts             # All model exports
-│   ├── ProtocolName.ts       # Protocol types
-│   └── ...
+├── models/                   # TypeScript types for your protocols
 └── index.ts
 ```
 
-**Important:** The generated API client includes:
-- TypeScript types for all protocols
-- `actions` field in protocol responses (mapped from `@actions` in API)
-- All `@api` permission methods
-
 ## ⚠️ CRITICAL: Use the Generated API Client
 
-The API paths are defined by the OpenAPI specification generated from your NPL protocols. **Always use the generated `DefaultService` methods** rather than constructing paths manually.
-
-### Why Use the Generated Client?
-
-1. **Type Safety** - TypeScript types match your NPL protocol definitions
-2. **Correct Paths** - The client knows the exact path format for each endpoint
-3. **Authentication** - Works with the ServiceProvider's axios interceptor for auth headers
-4. **No Guessing** - Path format is handled automatically
-
-### Example Usage
+**Always use the generated `DefaultService` methods** — never construct `/npl/` paths manually.
 
 ```typescript
-// ❌ WRONG - Manual path construction
-const response = await axios.get('/npl/cooper/DogProfile/');
+// ❌ WRONG - manual path construction
+fetch('/npl/provenance/GoldBar/');
 
-// ✅ CORRECT - Use generated service methods
+// ✅ CORRECT - use generated service methods
 import { DefaultService } from './generated/services/DefaultService';
-
-const dogs = await DefaultService.getDogProfileList({ page: 1, pageSize: 100 });
-const dog = await DefaultService.getDogProfileById({ id: dogId });
+DefaultService.getGoldBarList({ pageSize: 25, includeCount: true });
+DefaultService.getGoldBarById({ id: barId });
 ```
 
-### Path Format Reference
+### Generated Client Pitfalls
 
-For reference, the NPL Engine uses this path format internally:
-
-```
-/npl/{package}/{ProtocolName}/
-```
-
-But you should **never need to construct these paths manually** - the generated client handles this.
-
-See [14-TROUBLESHOOTING.md](./14-TROUBLESHOOTING.md) for more details on API issues.
-
-### Generated Client Pitfalls (Important)
-
-- Do not assume wrapper names from templates (for example `GoldBarApi`) exist in generated files.
-  - Generated code may expose `DefaultApi` (or service classes) only.
-- Build a thin local wrapper over generated client methods if you need stable app-level APIs.
-- Use generated field names exactly (`@id`, flattened properties, action command names).
-- For protocol creation, always include `@parties` in request payload.
-  - With party automation in `rules.yml`, default to empty object: `"@parties": {}`
-  - Avoid injecting fallback explicit parties unless business logic requires it, or you risk party arity errors.
+- Do not assume wrapper class names like `GoldBarApi` exist — generated code exposes `DefaultService` only.
+- Use generated field names exactly: `@id`, `@state`, `@actions`, flattened properties.
+- For protocol creation, always include `@parties` in the request payload. With party automation in `rules.yml`, use an empty object: `"@parties": {}`.
 
 ---
 
 ## ⛔ CHECKPOINT: Verify API Client Before Component Development
 
-**Before proceeding to develop any frontend components (guides 05-09), you MUST verify:**
+**Before writing any page components, verify:**
 
 ```bash
-# 1. Check generated files exist
-ls src/generated/
-# ✅ Should see: api.ts (or similar API client file)
-
-# 2. Check models were generated
-ls src/generated/models/
-# ✅ Should see TypeScript files for your protocols
-
-# 3. Verify TypeScript compiles
-npm run build
-# ✅ Should complete without type errors
+ls frontend/src/generated/services/   # should contain DefaultService.ts
+ls frontend/src/generated/models/     # should contain your protocol types
+cd frontend && npm run build          # should compile without errors
 ```
 
-### ❌ DO NOT proceed to component development until:
-- [ ] `src/generated/api.ts` exists
-- [ ] `src/generated/models/` contains type definitions for your protocols
-- [ ] `npm run build` completes without TypeScript errors
-
-### Why This Matters
-
-All frontend components (overview pages, detail pages, forms, action buttons) must:
-- Import types from `src/generated/models/`
-- Use API methods from `src/generated/api.ts`
-- **NEVER use mock or hardcoded data**
-
-If you try to develop components before the API client is generated:
-- ❌ No type definitions available
-- ❌ No API methods to call
-- ❌ Forced to use forbidden mock data
-- ❌ Will need complete rewrite when API client exists
+Do not proceed to component guides until `src/generated/` is populated.
 
 ---
 
 ## ⚠️ CRITICAL: No Mock Data in Frontend
 
-**ALL data displayed in the frontend MUST come from the backend API.** This is a non-negotiable rule.
-
-### Forbidden Patterns
+**ALL data displayed in the frontend MUST come from the backend API.**
 
 ```typescript
-// ❌ FORBIDDEN - Hardcoded mock data
-const mockDogs = [{ id: '1', name: 'Cooper', breed: 'Golden Retriever' }];
-
-// ❌ FORBIDDEN - Fallback to fake data
+// ❌ FORBIDDEN
+const mockItems = [{ id: '1', name: 'Example' }];
 const items = apiResponse || [{ id: '1', name: 'Sample' }];
 
-// ❌ FORBIDDEN - Default values that look like real data
-const [item, setItem] = useState({ name: 'Example', value: 42 });
-
-// ❌ FORBIDDEN - Demo/sample data anywhere in components
-const demoData = { ... };
-```
-
-### Required Patterns
-
-```typescript
-// ✅ CORRECT - Fetch from API with proper state handling
-const [loading, setLoading] = useState(true);
+// ✅ CORRECT
 const [items, setItems] = useState<Item[]>([]);
+const [loading, setLoading] = useState(true);
 const [error, setError] = useState<string | null>(null);
 
 useEffect(() => {
-  fetchItems();
-}, []);
+  if (!authenticated) return;
+  api.getItemList()
+    .then((res) => setItems(res.items))
+    .catch(() => setError('Failed to load data'))
+    .finally(() => setLoading(false));
+}, [api, authenticated]);
+```
 
-const fetchItems = async () => {
-  try {
-    setLoading(true);
-    const response = await services.api.getItemList();
-    setItems(response.items || []);
-  } catch (e) {
-    setError('Failed to load data');
-  } finally {
-    setLoading(false);
-  }
-};
+---
 
-// ✅ CORRECT - Empty state when no data
-if (items.length === 0) {
-  return <EmptyState message="No items found. Create your first item." />;
+## ⚠️ CRITICAL: Keycloak AuthProvider
+
+### Do NOT use `silentCheckSsoRedirectUri`
+
+Keycloak 19+ sends a `frame-ancestors 'self'` Content Security Policy header that blocks the hidden iframe used by `silentCheckSsoRedirectUri`:
+
+```
+Framing 'http://host.docker.internal:11000/' violates Content Security Policy: "frame-ancestors 'self'"
+```
+
+Omit it entirely — keycloak-js falls back to a redirect-based check which works correctly.
+
+### Correct `kc.init()` Configuration
+
+```typescript
+kc.init({
+  onLoad: "check-sso",
+  checkLoginIframe: false,
+  pkceMethod: "S256"
+  // ❌ NO silentCheckSsoRedirectUri
+})
+```
+
+### Mandatory Guard: Fail Fast on Missing Config
+
+Validate env vars before calling `new Keycloak(...)`:
+
+```typescript
+const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
+const realm = import.meta.env.VITE_NC_KC_REALM;
+const clientId = import.meta.env.VITE_NC_KC_CLIENT_ID;
+
+if (!keycloakUrl || !realm || !clientId) {
+  setConfigError("Missing Keycloak environment variables.");
+  setLoading(false);
+  return;
 }
 ```
 
-### Acceptable Placeholders
+### Key Rules
 
-- Form field placeholders: `placeholder="e.g., Example Name"` ✅
-- Empty state messages: `"No items found"` ✅
-- Loading indicators: `<CircularProgress />` ✅
-- Error messages: `"Failed to load data"` ✅
-
-### Why This Matters
-
-1. **Data Integrity**: Mock data creates confusion about what's real vs fake
-2. **Debugging**: Fake data masks API issues and makes debugging harder
-3. **User Trust**: Users must see only their actual data
-4. **Testing**: The app should fail obviously if the API is unreachable
-
-## Initial Project Setup
-
-1. **Initialize project:**
-   ```bash
-   npm init -y
-   npm install (all dependencies from above)
-   ```
-
-2. **Create directory structure:**
-   ```bash
-   mkdir -p src/components/{shared,overview-pages,detail-pages,creation-forms,action-buttons}
-   mkdir -p src/{hooks,utils,i18n,generated}
-   ```
-
-3. **Set up basic files:**
-   - `src/main.tsx` - Entry point
-   - `src/App.tsx` - Root component
-   - `src/theme.ts` - Material-UI theme
-   - `src/AuthProvider.tsx` - Keycloak authentication
-   - `src/ServiceProvider.tsx` - API service provider
-
-## ⚠️ CRITICAL: Keycloak Silent SSO File
-
-**You MUST create the `silent-check-sso.html` file for proper SSO authentication.**
-
-### Why This File is Required
-
-When using `check-sso` authentication mode with `silentCheckSsoRedirectUri`, Keycloak uses this file for silent SSO checks. This file is **required** for proper authentication flow.
-
-Without this file:
-- ❌ Silent SSO check will fail
-- ❌ Authentication redirect loops may occur
-- ❌ Users will be redirected to login even when already authenticated
-
-### File Location
-
-**File:** `frontend/public/silent-check-sso.html`
-
-This file must be placed in the `public/` directory so it's served as a static asset and accessible at the root URL path.
-
-### File Content
-
-Create `frontend/public/silent-check-sso.html` with this exact content:
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Silent Check SSO</title>
-</head>
-<body>
-  <script>
-    parent.postMessage(location.href, location.origin);
-  </script>
-</body>
-</html>
-```
-
-### AuthProvider Configuration
-
-> ⚠️ **CRITICAL:** Follow this exact configuration to avoid redirect loops.
-
-In your `AuthProvider.tsx`, use these init options:
-
-```typescript
-// CRITICAL: Use 'check-sso' instead of 'login-required' to avoid redirect loops
-// silentCheckSsoRedirectUri requires the silent-check-sso.html file in public/
-kc.init({
-  onLoad: 'check-sso',           // ✅ Never use 'login-required'
-  checkLoginIframe: false,       // ✅ Set to false to avoid iframe issues
-  pkceMethod: 'S256',
-  silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
-})
-  .then((auth) => {
-    if (auth) {
-      // User is authenticated - set up token refresh
-    } else {
-      // CRITICAL: Login redirect happens HERE, not in a separate useEffect
-      // This prevents redirect loops from effect re-runs
-      kc.login({
-        redirectUri: window.location.href,
-      });
-    }
-  });
-```
-
-### Mandatory Guard: Block Redirect Loops on Bad Config
-
-Your `AuthProvider` must validate auth env values before `new Keycloak(...)` and before any `login()` call.
-
-Required behavior:
-- If required env is missing, set a `configError` state and render it.
-- Do **not** call `kc.init()` or `kc.login()` when config is invalid.
-- `ProtectedRoute` must show the config error and avoid auto-redirect.
-
-### Key Implementation Rules (Non-Optional)
-
-1. **Use `initializingRef`** — Add a `useRef(false)` to prevent React StrictMode from initializing Keycloak twice:
+1. **Always use `check-sso`** — never `login-required`
+2. **Use `initializingRef`** — prevents React StrictMode from double-initializing Keycloak:
    ```typescript
-   const initializingRef = useRef(false);
-   
+   const initRef = useRef(false);
    useEffect(() => {
-     if (initializingRef.current) return;
-     initializingRef.current = true;
-     // ... Keycloak init code
+     if (initRef.current) return;
+     initRef.current = true;
+     // ... kc.init()
    }, []);
    ```
+3. **Set `checkLoginIframe: false`**
+4. **No `silentCheckSsoRedirectUri`**
+5. **Fail fast on bad env** — never allow `undefined/protocol/openid-connect` redirects
 
-2. **Never use `login-required`** — Always use `check-sso` mode
+---
 
-3. **Handle login in init callback** — Do NOT use a separate `useEffect` for login redirect. This is the #1 cause of redirect loops.
+## 🚨 CRITICAL: ServiceProvider — Token Injection
 
-4. **Set `checkLoginIframe: false`** — Avoids iframe-related issues
+Every request to the engine must include `Authorization: Bearer <token>`. The generated `OpenAPI` object controls this via `BASE` and `TOKEN`.
 
-5. **Use `silentCheckSsoRedirectUri`** — Points to the silent-check-sso.html file
-6. **Fail fast on bad env** — Never allow `undefined/protocol/openid-connect` redirects
+### Rule 1: Set `OpenAPI.BASE` and `OpenAPI.TOKEN` at module level — NOT in `useEffect`
 
-### How It Works
+Setting them in `useEffect` causes a race condition: effects run after the first render, but child components may already have fired API calls. Set at module level so they are configured before any component renders:
 
-1. Keycloak `init()` is called with `check-sso` mode
-2. Keycloak checks if user is already authenticated (using the silent-check-sso.html file)
-3. `init()` resolves with `auth = true` (authenticated) or `auth = false` (not authenticated)
-4. If `auth = false`, we call `kc.login()` directly in the callback
-5. User is redirected to Keycloak login page
-6. After login, Keycloak redirects back to the app
-7. `init()` is called again and resolves with `auth = true`
+```typescript
+import type Keycloak from "keycloak-js";
+import { OpenAPI } from "./generated/core/OpenAPI";
+import { DefaultService } from "./generated/services/DefaultService";
 
-### Common Redirect Loop Causes
+let _keycloak: Keycloak | null = null;
 
-| Cause | Solution |
-|-------|----------|
-| Using `login-required` mode | Use `check-sso` instead |
-| Login redirect in separate `useEffect` | Move login to init callback |
-| React StrictMode double initialization | Use `initializingRef` guard |
-| Missing `silent-check-sso.html` | Create the file in `public/` |
-| `checkLoginIframe: true` with CORS issues | Set to `false` |
-
-### Verification
-
-After creating the file, verify it's accessible:
-
-```bash
-# In development (Vite)
-curl http://localhost:5173/silent-check-sso.html
-
-# Should return the HTML content
-```
-
-### Directory Structure
-
-Your `frontend/public/` directory should look like this:
-
-```
-frontend/
-├── public/
-│   ├── silent-check-sso.html  # ✅ REQUIRED for SSO
-│   └── (other static assets)
-└── src/
-    └── ...
-```
-
-## Landing Page (Required)
-
-Every application needs a **public landing page** that users see before logging in. This page should:
-
-1. Welcome users to the application
-2. Provide a "Sign In" button that triggers Keycloak login
-3. Show demo credentials (for development)
-
-### Why Landing Page is Required
-
-With `check-sso` authentication mode:
-- The app checks if user is already logged in
-- If not, it should display the landing page (NOT auto-redirect to Keycloak)
-- User clicks "Sign In" to trigger authentication
-
-### LandingPage Component
-
-**File:** `src/components/LandingPage.tsx`
-
-> ⚠️ **Important:** The LandingPage is **outside** the `AuthProvider` context, so it **cannot** use `useAuth()`. Instead, navigate to a protected route to trigger authentication.
-
-```tsx
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  Container,
-  Typography,
-  Paper,
-  Stack,
-  useTheme,
-} from '@mui/material';
-import PetsIcon from '@mui/icons-material/Pets';
-import LoginIcon from '@mui/icons-material/Login';
-
-/**
- * Public landing page - displayed before authentication.
- * 
- * This page is outside the AuthProvider context, so it cannot use useAuth().
- * Instead, it navigates to a protected route which triggers authentication.
- */
-export const LandingPage: React.FC = () => {
-  const navigate = useNavigate();
-  const theme = useTheme();
-
-  const handleLogin = () => {
-    // Navigate to a protected route - this will trigger authentication
-    // via the AuthenticatedApp wrapper and ProtectedRoute
-    navigate('/dashboard');
-  };
-
-  return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Container maxWidth="sm">
-        <Paper elevation={12} sx={{ p: 6, textAlign: 'center', borderRadius: 4 }}>
-          <Stack spacing={4} alignItems="center">
-            <PetsIcon sx={{ fontSize: 80, color: 'primary.main' }} />
-            
-            <Typography variant="h3" fontWeight="bold" color="primary">
-              Your App Name
-            </Typography>
-            
-            <Typography variant="body1" color="text.secondary">
-              Your app description here.
-            </Typography>
-
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<LoginIcon />}
-              onClick={handleLogin}
-              sx={{ px: 6, py: 1.5 }}
-            >
-              Sign In to Continue
-            </Button>
-
-            <Typography variant="caption" color="text.secondary">
-              Demo: user@example.com / welcome
-            </Typography>
-          </Stack>
-        </Paper>
-      </Container>
-    </Box>
-  );
-};
-```
-
-### main.tsx Structure
-
-**File:** `src/main.tsx`
-
-The entry point wraps the entire app with authentication providers. This ensures consistent auth state across all routes.
-
-```tsx
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { RouterProvider } from 'react-router-dom';
-import './index.css';
-import './i18n';
-import { createAppTheme } from './theme';
-import { RuntimeConfigurationProvider } from './RuntimeConfigurationProvider';
-import { AuthProvider } from './AuthProvider';
-import { ServiceProvider } from './ServiceProvider';
-import { UserProvider } from './UserProvider';
-import { router } from './Router';
-import { ThemeProvider, useColorMode } from './ThemeContext';
-import { ErrorBoundary } from './components/shared/ErrorBoundary';
-
-const ThemedApp = () => {
-  const { colorMode } = useColorMode();
-  const theme = createAppTheme(colorMode);
-  
-  return (
-    <MuiThemeProvider theme={theme}>
-      <CssBaseline />
-      <RouterProvider router={router()} />
-    </MuiThemeProvider>
-  );
-};
-
-export const App = () => {
-  return (
-    <React.StrictMode>
-      <ThemeProvider>
-        <ThemedApp />
-      </ThemeProvider>
-    </React.StrictMode>
-  );
-};
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <ErrorBoundary>
-    <RuntimeConfigurationProvider>
-      <AuthProvider>
-        <ServiceProvider>
-          <UserProvider>
-            <App />
-          </UserProvider>
-        </ServiceProvider>
-      </AuthProvider>
-    </RuntimeConfigurationProvider>
-  </ErrorBoundary>
-);
-```
-
-### Router Configuration
-
-The router defines all application routes:
-
-```tsx
-import { createBrowserRouter } from 'react-router-dom';
-import { LandingPage } from './components/LandingPage';
-import Layout from './components/shared/Layout';
-import { ProtectedRoute } from './components/shared/ProtectedRoute';
-// ... import your pages
-
-export const router = () => createBrowserRouter([
-  // Public landing page
-  {
-    path: '/',
-    element: <LandingPage />
-  },
-  
-  // Protected routes with layout
-  {
-    element: <Layout />,
-    children: [
-      {
-        path: '/dashboard',
-        element: <ProtectedRoute><Dashboard /></ProtectedRoute>
-      },
-      // ... other protected routes
-    ]
+OpenAPI.BASE = import.meta.env.VITE_ENGINE_URL || "http://localhost:12001";
+OpenAPI.TOKEN = async () => {
+  const kc = _keycloak;
+  if (!kc?.authenticated) return "";
+  try {
+    await kc.updateToken(70);
+  } catch {
+    // keep current token if refresh fails
   }
-]);
+  return kc.token || "";
+};
 ```
 
-> **Note:** The `ProtectedRoute` component checks authentication and redirects to login if needed.
+### Rule 2: Update `_keycloak` synchronously in the render body — NOT in `useEffect`
 
-## 🚨 CRITICAL: API Authentication Headers - JWT Token Required
-
-**THIS IS A CORNER PRINCIPLE - MANDATORY FOR ALL BACKEND REQUESTS**
-
-**Every single API call to the backend MUST include the Authorization header with the JWT bearer token.**
-
-### Why This Is Critical
-
-The Noumena Engine requires authentication for all API requests. Without the JWT token:
-- API calls will fail with `401 Unauthorized`
-- API calls will fail with `503 Service Unavailable`
-- You'll see errors like `"No Authorization header found on request"`
-- The backend cannot identify the user or assign parties in NPL protocols
-
-### Solution: Axios Interceptor in ServiceProvider
-
-**The `ServiceProvider` MUST use an axios request interceptor to automatically add the Authorization header to ALL API requests.**
-
-This is handled centrally so every API call includes the token - you never have to manually add headers in individual API calls.
-
-**Implementation Requirements:**
-
-1. **Use GLOBAL axios interceptor** — Intercepts ALL axios requests (not just ServiceProvider's api instance)
-2. **Use a ref for keycloak** — Ensures the interceptor always has access to the current keycloak instance (`keycloakRef.current`)
-3. **Auto token refresh** — Calls `kc.updateToken(70)` before each request to keep the token fresh
-4. **Centralized** — Auth header logic is in ONE place, not duplicated in every API call
-5. **Always add header** — Even if token refresh fails, use the existing token
-
-**Code Pattern:**
+React runs children's effects before parents'. If `ServiceProvider` updates `_keycloak` in a `useEffect`, child page components call the API before the parent has set the latest keycloak instance. Update it in the render body — parents always render before children:
 
 ```typescript
-// In ServiceProvider.tsx
-import axios from 'axios';
+export function ServiceProvider({ children }: { children: ReactNode }) {
+  const { keycloak } = useAuth();
+  _keycloak = keycloak; // ✅ synchronous — runs before any child renders
 
-// CRITICAL: Add interceptor to GLOBAL axios instance
-// This ensures ALL axios requests get the token
-axios.interceptors.request.use(
-  async (config) => {
-    const kc = keycloakRef.current; // Use ref to get latest instance
-    
-    if (!kc || !kc.authenticated) {
-      console.warn('[ServiceProvider] Keycloak not authenticated');
-      return config;
-    }
-    
-    try {
-      // Refresh token if needed (within 70 seconds of expiry)
-      await kc.updateToken(70);
-      
-      const token = kc.token;
-      if (token) {
-        // CRITICAL: Add Authorization header
-        config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
-        console.log('[ServiceProvider] Authorization header added');
-      }
-    } catch (error) {
-      // Even if refresh fails, try to use existing token
-      const token = kc.token;
-      if (token) {
-        config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    
-    return config;
-  }
-);
+  return (
+    <ServicesContext.Provider value={{ api: DefaultService }}>
+      {children}
+    </ServicesContext.Provider>
+  );
+}
 ```
 
-### Verification Checklist
+### Rule 3: Guard all page API calls behind `authenticated`
 
-After implementing, verify:
-- [ ] Interceptor is added to global `axios` instance
-- [ ] Interceptor uses `keycloakRef.current` (not direct `keycloak` prop)
-- [ ] Token refresh is called before each request (`updateToken(70)`)
-- [ ] Authorization header is set: `Authorization: Bearer <token>`
-- [ ] Console logs show "Authorization header added" for each request
-- [ ] Network tab shows `Authorization` header in request headers
-- [ ] No 401/503 errors in API calls
-
-### Common Mistakes
-
-❌ **Wrong:** Adding headers manually in each API call
 ```typescript
-// DON'T DO THIS - it's error-prone and easy to forget
-api.get('/endpoint', { headers: { Authorization: `Bearer ${token}` } });
+const { authenticated } = useAuth();
+
+useEffect(() => {
+  if (!authenticated) return; // ✅ wait for auth
+  api.getItemList().then(...);
+}, [api, authenticated]);
 ```
 
-✅ **Correct:** Use interceptor (automatic for all requests)
-```typescript
-// DO THIS - interceptor handles it automatically
-api.get('/endpoint'); // Token added automatically by interceptor
-```
+Without this guard, the first render fires an unauthenticated request and the engine responds with `"No Authorization header found on request"`.
 
-❌ **Wrong:** Using local axios instance interceptor only
-```typescript
-// DON'T DO THIS - only catches requests from this instance
-api.interceptors.request.use(...);
-```
+---
 
-✅ **Correct:** Use global axios interceptor
-```typescript
-// DO THIS - catches ALL axios requests
-axios.interceptors.request.use(...);
-```
+## Completion Checklist
 
-See [10-CODE-TEMPLATES.md](./10-CODE-TEMPLATES.md) for the complete ServiceProvider implementation.
+- [ ] `frontend/.env` exists with `VITE_*` vars (local dev), or env set in `docker-compose.yml` (Docker dev)
+- [ ] `VITE_KEYCLOAK_URL` uses `host.docker.internal`, not `localhost`
+- [ ] `kc.init()` does not include `silentCheckSsoRedirectUri`
+- [ ] `OpenAPI.BASE` and `OpenAPI.TOKEN` set at module level in `ServiceProvider.tsx`
+- [ ] `_keycloak` updated in render body (not `useEffect`)
+- [ ] All page API `useEffect` calls guarded with `if (!authenticated) return`
+- [ ] Network tab shows `Authorization: Bearer ...` on all `/npl/` requests
+- [ ] No 401 errors after login
+- [ ] `make generate-api` run and `src/generated/` is populated
 
-## Completion Gates (Must Pass)
-
-Before declaring frontend/auth setup complete:
-
-1. `VITE_KEYCLOAK_URL`, `VITE_NC_KC_REALM`, `VITE_NC_KC_CLIENT_ID` are non-empty in running frontend.
-2. Login starts without malformed `.../undefined/protocol/openid-connect/...` URL.
-3. Browser requests to `/npl/...` include `Authorization: Bearer <token>`.
-4. `/bars` loads without 503 after login.
-5. Public `/explorer` route remains accessible without login.
+---
 
 ## Next Steps
 
-### ⛔ STOP: Run `make up` Before Component Development
+Run `make generate-api` before writing any page components, then proceed in order:
 
-**Before proceeding to guides 05-09, you MUST start the system and generate the API client:**
-
-```bash
-# Start the full system (compiles NPL, generates API client, starts all services)
-make up
-
-# Verify API client was generated
-ls frontend/src/generated/
-# ✅ Should see: index.ts, models/, services/, core/
-```
-
-**❌ DO NOT proceed to component guides until `src/generated/` exists.**
-
-### Then proceed to:
-1. [05-SIDEBAR-NAVIGATION.md](./05-SIDEBAR-NAVIGATION.md) - Generate sidebar navigation
-2. [06-ACTION-BUTTONS.md](./06-ACTION-BUTTONS.md) - Generate action buttons (BEFORE detail pages)
-3. [07-DETAIL-PAGES.md](./07-DETAIL-PAGES.md) - Generate detail pages
-4. [08-OVERVIEW-PAGES.md](./08-OVERVIEW-PAGES.md) - Generate overview pages
-5. [09-CREATION-FORMS.md](./09-CREATION-FORMS.md) - Generate creation forms
-
+1. [05-SIDEBAR-NAVIGATION.md](./05-SIDEBAR-NAVIGATION.md)
+2. [06-ACTION-BUTTONS.md](./06-ACTION-BUTTONS.md)
+3. [07-DETAIL-PAGES.md](./07-DETAIL-PAGES.md)
+4. [08-OVERVIEW-PAGES.md](./08-OVERVIEW-PAGES.md)
+5. [09-CREATION-FORMS.md](./09-CREATION-FORMS.md)
