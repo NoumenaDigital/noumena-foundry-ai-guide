@@ -137,8 +137,270 @@ Use one tested local auth contract across all files to avoid issuer/hostname dri
 - Keycloak runs in dynamic hostname mode (`--hostname-strict=false`) with no explicit `KC_HOSTNAME`
 - `keycloak-provisioning` is a one-shot job and should end in `Exited (0)`
 
+## Step 1: Create Docker Compose Configuration
 
-## Step 1: Create Environment Variables Template
+**File:** `docker-compose.yml`
+
+> **Important:** Keep `VITE_NC_KC_REALM` and `VITE_NC_KC_CLIENT_ID` in root `.env` and use
+> them consistently across `docker-compose.yml`, frontend config, and provisioning.
+
+```yaml
+volumes:
+  keycloak-db: { }
+  kc-provision-state: { }  # Terraform state for keycloak-provisioning (persists between restarts)
+
+services:
+
+  # NPL Engine Database
+  engine-db:
+    image: postgres:14.4-alpine
+    mem_limit: 256m
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: engine
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      ENGINE_DB_USER: engine
+      ENGINE_DB_PASSWORD: secret
+      HISTORY_DB_USER: history
+      HISTORY_DB_PASSWORD: secret
+      READ_MODEL_DB_USER: read-model
+      READ_MODEL_DB_PASSWORD: secret
+    volumes:
+      - ./db_init/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 1s
+      timeout: 5s
+      retries: 50
+
+  # NPL Engine
+  engine:
+    image: ghcr.io/noumenadigital/images/engine:${PLATFORM_VERSION}
+    build:
+      context: npl
+    ports:
+      - "12000:12000"
+      - "12400:12400"
+    environment:
+      # CRITICAL: Engine dev mode MUST be false when using external Keycloak
+      # When ENGINE_DEV_MODE=true, the engine runs an embedded OIDC server on port 11000
+      # This conflicts with external Keycloak and causes JWKS verification failures
+      ENGINE_DEV_MODE: ${DEV_MODE:-false}
+      ENGINE_DB_URL: "jdbc:postgresql://engine-db:5432/engine"
+      ENGINE_DB_USER: engine
+      ENGINE_DB_PASSWORD: secret
+      ENGINE_DB_HISTORY_USER: history
+      ENGINE_DB_HISTORY_SCHEMA: history
+      ENGINE_DB_READ_MODEL_USER: read-model
+      # CRITICAL: Allow the tested local issuer set
+      ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
+      SWAGGER_ENGINE_URL: http://localhost:12000
+      SWAGGER_SECURITY_AUTH_URL: http://localhost:11000/realms/${VITE_NC_KC_REALM}
+      SWAGGER_SECURITY_CLIENT_ID: ${VITE_NC_KC_CLIENT_ID}
+      ENGINE_NPL_MIGRATION_RUN_ONLY: local
+      AMQP_USERNAME: "${AMQP_USERNAME}"
+      AMQP_PASSWORD: "${AMQP_PASSWORD}"
+      AMQP_BROKER_URL: "amqp://${AMQP_HOST?}:${AMQP_PORT?}"
+      AMQP_USE_SSL: "${AMQP_USE_SSL?}"
+      AMQP_QUEUE_NAME: "/queues/${AMQP_ROOT_QUEUE_NAME}"
+      AMQP_POLLING_PERIOD_SECONDS: 1
+    depends_on:
+      engine-db:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      # NOTE: Use wget, not curl - the engine container doesn't have curl installed
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:12000/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
+
+  # History Service
+  history:
+    image: ghcr.io/noumenadigital/images/history:${PLATFORM_VERSION}
+    ports:
+      - "12010:12010"
+      - "12711:12711"
+    environment:
+      HISTORY_DEV_MODE: ${DEV_MODE:-false}
+      HISTORY_ADMIN_HOST: 0.0.0.0
+      HISTORY_ADMIN_PORT: 12711
+      HISTORY_DB_URL: "jdbc:postgresql://engine-db:5432/engine"
+      HISTORY_DB_USER: history
+      HISTORY_DB_PASSWORD: secret
+      HISTORY_DB_SCHEMA: history
+      HISTORY_DB_ENGINE_SCHEMA: noumena
+      HISTORY_STARTUP_HEALTH_CHECK_ATTEMPTS: 10
+    depends_on:
+      engine-db:
+        condition: service_started
+      engine:
+        condition: service_healthy
+
+  # Read Model (GraphQL)
+  read-model:
+    image: ghcr.io/noumenadigital/images/read-model:latest
+    ports:
+      - "15000:15000"
+    environment:
+      READ_MODEL_PORT: 15000
+      READ_MODEL_DB_URL: postgres://read-model:secret@engine-db:5432/engine
+      READ_MODEL_DB_USER: read-model
+      READ_MODEL_DB_SCHEMA: noumena
+      READ_MODEL_TRUSTED_ISSUERS: "http://keycloak:11000/**"
+      READ_MODEL_ENGINE_HEALTH_ENDPOINT: "http://engine:12000/actuator/health"
+      READ_MODEL_ENGINE_HEALTH_TIMEOUT_SECONDS: 250
+      READ_MODEL_ALLOWED_ISSUERS: >
+        http://keycloak:11000/realms/${VITE_NC_KC_REALM},
+        http://localhost:11000/realms/${VITE_NC_KC_REALM},
+        http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
+    depends_on:
+      engine-db:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+
+  # Keycloak Provisioning
+  keycloak-provisioning:
+    image: ghcr.io/noumenadigital/your-app/keycloak-provisioning:latest
+    build:
+      context: keycloak-provisioning
+    env_file:
+      - .env
+    environment:
+      KEYCLOAK_USER: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_URL: http://keycloak:11000
+      TF_VAR_default_password: ${KC_INITIAL_USER_PASSWORD}
+      TF_VAR_frontend_port: ${FRONTEND_PORT}
+      TF_VAR_app_name: ${VITE_NC_KC_REALM}
+    volumes:
+      - kc-provision-state:/state  # Persist Terraform state between restarts
+    profiles:
+      - app
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
+  # Keycloak
+  # NOTE: Keycloak takes 10-30 seconds to start (database migrations, realm init).
+  # The health check must include start_period to avoid premature failures.
+  # CRITICAL for LOCAL DEVELOPMENT:
+  #   - Use `start-dev` instead of `start` to disable HTTPS requirements
+  #   - The admin console REQUIRES SSL disabled even with start-dev for the master realm
+  #   - The provisioning script should disable SSL for master realm via API
+  keycloak:
+    image: ghcr.io/noumenadigital/packages/keycloak:latest
+    build:
+      context: keycloak
+    # Use start-dev for local development (disables HTTPS requirements for most features)
+    # For production, use 'start' with proper HTTPS/TLS configuration
+    command: |
+      start-dev
+      --spi-events-listener-jboss-logging-success-level=info
+      --spi-events-listener-jboss-logging-error-level=error
+      --hostname-strict=false
+      --health-enabled=true
+      --http-enabled=true
+      --metrics-enabled=true
+      --db=postgres
+    ports:
+      - "11000:11000"
+      - "9000:9000"
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB_URL: jdbc:postgresql://keycloak-db/postgres
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: testing
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: 11000
+    depends_on:
+      keycloak-db:
+        condition: service_started
+    # NOTE: Keycloak health check uses curl (installed via multi-stage build in Dockerfile)
+    # Health endpoint is on port 11000, use localhost since check runs inside the container
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11000/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  # Keycloak Database
+  keycloak-db:
+    image: postgres:14.4-alpine
+    mem_limit: 256m
+    ports:
+      - "11040:5432"
+    volumes:
+      - keycloak-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: testing
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 1s
+      timeout: 5s
+      retries: 50
+
+  # RabbitMQ
+  rabbitmq:
+    build:
+      context: rabbitmq
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    environment:
+      AMQP_QUEUE_NAME: "${AMQP_ROOT_QUEUE_NAME?}"
+      AMQP_USERNAME: "${AMQP_USERNAME?}"
+      AMQP_PASSWORD: "${AMQP_PASSWORD?}"
+    user: rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics ping
+      interval: 3s
+      timeout: 10s
+      retries: 60
+
+  # Nginx Proxy
+  nginx-proxy:
+    image: nginx:latest
+    ports:
+      - "12001:12001"  # Gateway: Engine + GraphQL routing with SSE support
+      - "15001:15001"  # Direct GraphQL access for debugging
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      engine:
+        condition: service_healthy
+      read-model:
+        condition: service_started
+
+  # Frontend (production build served by nginx)
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    environment:
+      VITE_ENGINE_URL: ${VITE_ENGINE_URL}
+      VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
+      VITE_NC_KC_REALM: ${VITE_NC_KC_REALM}
+      VITE_NC_KC_CLIENT_ID: ${VITE_NC_KC_CLIENT_ID}
+      FRONTEND_PORT: ${FRONTEND_PORT}
+    depends_on:
+      nginx-proxy:
+        condition: service_started
+```
+
+## Step 2: Create Environment Variables Template
 
 **File:** `.env`
 
@@ -196,7 +458,7 @@ DEV_MODE=false
 > **Note:** Keep one canonical URL in frontend env and token issuer (`host.docker.internal` in this
 > setup), and allow it in engine/read-model issuer lists.
 
-## Step 2: Create Makefile
+## Step 3: Create Makefile
 
 **File:** `Makefile`
 
@@ -470,7 +732,7 @@ server {
 > nginx config. The generated frontend must be embeddable in iframes for the Foundry preview
 > to work. The Keycloak `security_defenses` block handles framing security at the auth level.
 
-## Step 3: Create NPL Migration Files
+## Step 4: Create NPL Migration Files
 
 The NPL engine requires migration files to load and compile your NPL protocols at runtime.
 
@@ -535,7 +797,7 @@ COPY src/main/migration.yml /migrations/migration.yml
 COPY src/main/rules.yml /migrations/rules.yml
 ```
 
-## Step 4: Create Database Initialization SQL
+## Step 5: Create Database Initialization SQL
 
 **File:** `db_init/db_init.sql`
 
@@ -551,7 +813,7 @@ GRANT ALL PRIVILEGES ON DATABASE engine TO "read-model";
 
 Use SQL init files mounted into `/docker-entrypoint-initdb.d/` as the canonical bootstrap path.
 
-## Step 5: Create Nginx Configuration
+## Step 6: Create Nginx Configuration
 
 **File:** `nginx/nginx.conf`
 
@@ -646,7 +908,7 @@ http {
 }
 ```
 
-## Step 6: Create RabbitMQ Configuration
+## Step 7: Create RabbitMQ Configuration
 
 ### Dockerfile
 
@@ -705,7 +967,7 @@ Do not add a custom RabbitMQ entrypoint for local setup.
 }
 ```
 
-## Step 7: Create Keycloak Dockerfile
+## Step 7.5: Create Keycloak Dockerfile
 
 **File:** `keycloak/Dockerfile`
 
