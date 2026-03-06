@@ -2,6 +2,7 @@ volumes:
   keycloak-db: { }
   kc-provision-state: { }  # Terraform state for keycloak-provisioning (persists between restarts)
 
+
 services:
 
   # NPL Engine Database
@@ -21,12 +22,14 @@ services:
       READ_MODEL_DB_USER: read-model
       READ_MODEL_DB_PASSWORD: secret
     volumes:
-      - ./db_init/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
+      - ./db_init/db_init.sh:/docker-entrypoint-initdb.d/db_init.sh
     healthcheck:
       test: pg_isready -U postgres
       interval: 1s
       timeout: 5s
       retries: 50
+
+
 
   # NPL Engine
   engine:

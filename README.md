@@ -23,11 +23,8 @@ The goal is to **automatically generate a complete, production-ready application
 Before starting, ensure you have:
 - ✅ Docker & Docker Compose
 - ✅ Node.js (v18+)
-- ✅ Java (JDK 11+)
-- ✅ Maven (3.6+)
+- ✅ NPL CLI (`npl version` works)
 - ✅ Make (optional but recommended)
-
-See [`ai-guide/PREREQUISITES.md`](./ai-guide/PREREQUISITES.md) for the complete checklist.
 
 ### 2. Create Your Business Logic
 
@@ -40,15 +37,14 @@ See [`ai-guide/PREREQUISITES.md`](./ai-guide/PREREQUISITES.md) for the complete 
 
 ### 3. Use the Build Agent
 
-1. Open Cursor IDE
-2. The `build_app` agent is configured in `.cursor/agents/build_app.md`
-3. The agent will:
+1. The `build_app` agent is configured in `.cursor/agents/build_app.md`
+2. The agent will:
    - Familiarize itself with the guide in `/ai-guide`
    - Use the guide to create an application based on your `BusinessLogic.md`
 
 ### 4. Follow the Sequential Workflow
 
-The development **MUST** happen in strict sequential phases:
+The development **MUST** happen in strict sequential phases, which is described in 11-STEP-BY-STEP.md, here a summary:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -80,16 +76,12 @@ The development **MUST** happen in strict sequential phases:
 ```
 ai-guide-npl/
 ├── ai-guide/                          # Complete AI guide for NPL development
-│   ├── README.md                      # Guide overview
-│   ├── QUICK-START.md                 # Fast-track workflow
-│   ├── PREREQUISITES.md               # Prerequisites checklist
-│   ├── 00-SCRIPTS-GENERATION.md       # Scripts generation (first step)
-│   ├── 01-PROJECT-SETUP.md            # Infrastructure setup
 │   ├── 02-NPL-DEVELOPMENT.md          # NPL protocol development
 │   ├── 02a-PARTY-AUTOMATION.md        # Party automation rules
 │   ├── 02b-NPL-TESTING.md             # NPL unit testing
 │   ├── 03-KEYCLOAK-PROVISIONING.md    # Keycloak role generation
 │   ├── 04-FRONTEND-SETUP.md           # Frontend project setup
+│   ├── 04a-FRONTEND-LOGIN.md          # Frontend AUTHENTICATION setup
 │   ├── 05-SIDEBAR-NAVIGATION.md       # Sidebar navigation
 │   ├── 06-OVERVIEW-PAGES.md           # Overview pages
 │   ├── 07-DETAIL-PAGES.md             # Detail pages
@@ -120,13 +112,12 @@ Create a `BusinessLogic.md` file based on `BusinessLogic.template.md` that descr
 - **Business Rules** - Critical rules that must be enforced
 - **Fit with NPL** - Why NPL is appropriate for this domain
 
-### Step 2: AI Agent Generation
+### Step 2: Development
 
 The `build_app` agent (configured in `.cursor/agents/build_app.md) will:
 1. **Familiarize** itself with the guide in `/ai-guide`
 2. **Read** your `BusinessLogic.md` file
 3. **Follow** the guide sequentially to generate:
-   - Infrastructure (Docker Compose, Makefile, environment variables)
    - NPL protocols (with `@api` annotations)
    - Keycloak provisioning (roles and users)
    - Frontend setup (React/TypeScript project)
@@ -139,8 +130,9 @@ At key checkpoints, you must manually verify:
 
 **After Phase 1 (Backend):**
 ```bash
-cd npl && mvn package
-ls target/generated-sources/openapi/  # Verify OpenAPI exists
+npl check --source-dir npl/src/main/npl-1.0
+npl openapi --source-dir npl/src/main/npl-1.0 --rules npl/src/main/rules.yml --output-dir npl/target
+ls npl/target/  # Verify OpenAPI YAML exists
 ```
 
 **After Phase 2 (API Client):**
@@ -175,7 +167,6 @@ For a detailed step-by-step workflow, see:
 - **NPL Engine** - Executes protocols and generates API
 - **PostgreSQL** - Database
 - **Keycloak** - Authentication and authorization
-- **RabbitMQ** - Message queue
 
 ### Frontend
 - **React 18+** with TypeScript
@@ -187,7 +178,6 @@ For a detailed step-by-step workflow, see:
 ## Core Principles
 
 1. **Protocol-Centric Architecture**
-   - Sidebar menu = Protocols organized by packages
    - Overview page = One per protocol (table of instances)
    - Detail page = One per protocol instance (action buttons + variable display)
    - Creation form = One per protocol (based on protocol parameters)
@@ -217,14 +207,13 @@ These features are **REQUIRED** and must be implemented before the application i
 
 ### Documentation
 - **[README.md](./ai-guide/README.md)** - Complete guide overview
-- **[QUICK-START.md](./ai-guide/QUICK-START.md)** - Fast-track workflow
-- **[PREREQUISITES.md](./ai-guide/PREREQUISITES.md)** - Prerequisites checklist
+- **[11-STEP-BY-STEP.md](./ai-guide/11-STEP-BY-STEP.md)** - Detailed Step by step guide 
 - **[10-CODE-TEMPLATES.md](./ai-guide/10-CODE-TEMPLATES.md)** - All code templates
 - **[14-TROUBLESHOOTING.md](./ai-guide/14-TROUBLESHOOTING.md)** - Common issues and solutions
 
 ### Common Issues
 - **Docker services won't start** - Check ports are available
-- **NPL compilation fails** - Check NPL syntax, verify Maven dependencies
+- **NPL check fails** - Check NPL syntax (`npl check --source-dir npl/src/main/npl-1.0`)
 - **OpenAPI not generated** - Ensure `@api` annotations are present
 - **Frontend build fails** - Check Node.js version, verify dependencies
 - **Keycloak authentication fails** - Verify realm and client ID match
@@ -290,7 +279,6 @@ One-command path (runs full flow including auth verification):
 After successful setup, `docker compose ps` should show:
 - `engine` healthy
 - `keycloak` healthy
-- `rabbitmq` healthy
 - `nginx-proxy` running
 - `keycloak-provisioning` `Exited (0)` (this is expected for one-shot provisioning)
 
@@ -306,10 +294,3 @@ After successful setup, `docker compose ps` should show:
    - `make frontend`
    - `make verify-auth`
 
-## License
-
-[Add your license information here]
-
-## Contributing
-
-[Add contribution guidelines if applicable]

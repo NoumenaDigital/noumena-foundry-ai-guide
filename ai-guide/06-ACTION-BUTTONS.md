@@ -72,22 +72,30 @@ The NPL engine calculates `@actions` based on:
 
 ### TypeScript Pattern
 
-In your generated TypeScript types, `@actions` becomes `actions` (OpenAPI naming convention):
+`@actions` is a **plain object** where each key is an action name. It is **not an array**. Always type it as `Record<string, unknown>`:
 
 ```typescript
-interface Issue {
+interface GoldBar {
   '@id': string;
-  title: string;
-  state: string;
+  '@state': string;
+  '@actions'?: Record<string, unknown>; // ✅ object, NOT string[]
+  serialNumber?: string;
   // ... other fields
-  actions?: IssueActions;  // The @actions field
 }
+```
 
-interface IssueActions {
-  startTriage?: object;
-  updatePriority?: { newPriority: string };
-  // ... one property per @api permission
-}
+To check whether an action is available, use either direct property access or the `in` operator — **never `.includes()`**:
+
+```typescript
+// ✅ Direct property check (preferred in render)
+if (!bar['@actions']?.certify) return null;
+
+// ✅ Generic helper using 'in'
+const hasAction = (action: string) =>
+  bar?.['@actions'] != null && action in (bar['@actions'] as Record<string, unknown>);
+
+// ❌ WRONG — @actions is not an array, .includes() will throw at runtime
+const hasAction = (action: string) => bar?.['@actions']?.includes(action);
 ```
 
 ### Button Component Pattern

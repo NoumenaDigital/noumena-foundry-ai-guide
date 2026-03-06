@@ -1,4 +1,4 @@
-# 04 - Frontend Setup
+04-# 04 - Frontend Setup
 
 ## ⚠️ CRITICAL: You Must Complete Phase 1 First
 
@@ -11,8 +11,8 @@ Before starting this guide, you MUST have completed Phase 1 (Backend):
 │ ⛔ STOP: Have you completed these steps?                        │
 ├─────────────────────────────────────────────────────────────────┤
 │ ✅ NPL protocols written with @api annotations                  │
-│ ✅ NPL compiled successfully: cd npl && mvn package             │
-│ ✅ OpenAPI exists: ls npl/target/generated-sources/openapi/     │
+│ ✅ NPL validated: npl check --source-dir npl/src/main/npl-1.0  │
+│ ✅ OpenAPI generated: npl openapi ... && ls npl/target/         │
 │ ✅ Backend services running: make infra && make provision       │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -31,7 +31,7 @@ Before generating the frontend, ensure you have:
 
 ## Frontend Project Structure
 
-Create a new frontend project with this structure:
+If there is no fronend present, create a new frontend project with this structure:
 
 ```
 frontend/
@@ -488,8 +488,7 @@ api.getGoldBarList({ pageSize: 100, includeCount: true });
 
 Run `make generate-api` before writing any page components, then proceed in order:
 
-1. [05-SIDEBAR-NAVIGATION.md](./05-SIDEBAR-NAVIGATION.md)
-2. [06-ACTION-BUTTONS.md](./06-ACTION-BUTTONS.md)
-3. [07-DETAIL-PAGES.md](./07-DETAIL-PAGES.md)
-4. [08-OVERVIEW-PAGES.md](./08-OVERVIEW-PAGES.md)
-5. [09-CREATION-FORMS.md](./09-CREATION-FORMS.md)
+1. [06-ACTION-BUTTONS.md](./06-ACTION-BUTTONS.md)
+2[07-DETAIL-PAGES.md](./07-DETAIL-PAGES.md)
+3[08-OVERVIEW-PAGES.md](./08-OVERVIEW-PAGES.md)
+4[09-CREATION-FORMS.md](./09-CREATION-FORMS.md)

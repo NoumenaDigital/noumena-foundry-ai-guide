@@ -949,7 +949,7 @@ When something goes wrong, follow this order:
    ```
 
 3. **For NPL/Engine issues:**
-   - Check NPL compilation: `cd npl && mvn package`
+   - Check NPL: `npl check --source-dir npl/src/main/npl-1.0`
    - Look for reserved keyword errors
    - Look for type redefinition errors
 

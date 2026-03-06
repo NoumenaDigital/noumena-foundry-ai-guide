@@ -1,7 +1,9 @@
 include .env
 
 GITHUB_SHA=HEAD
-MAVEN_CLI_OPTS?=--no-transfer-progress
+NPL_SOURCE_DIR=npl/src/main/npl-1.0
+NPL_RULES=npl/src/main/rules.yml
+NPL_OPENAPI_OUT=npl/target
 
 ifeq ($(OS),Windows_NT)
 PROVISION_SETUP = if not exist .docker-anon mkdir .docker-anon
@@ -61,14 +63,13 @@ provision:
 # Deploy NPL to running engine
 .PHONY: npl-deploy
 npl-deploy:
-	cd npl && mvn package
-	docker compose up -d --build engine
-	docker compose up --wait engine
+	npl check --source-dir $(NPL_SOURCE_DIR)
+	npl deploy --source-dir $(NPL_SOURCE_DIR) --clear
 
 # Run NPL tests
 .PHONY: npl-test
 npl-test:
-	cd npl ; mvn test
+	npl test --test-source-dir npl/src
 
 # Full app startup (infra + provision + npl + frontend)
 .PHONY: up
@@ -93,8 +94,11 @@ frontend-dev:
 
 .PHONY: generate-api
 generate-api:
-	cd npl && mvn package -q
-	node scripts/generate-api-client.mjs
+	npl openapi --source-dir $(NPL_SOURCE_DIR) --rules $(NPL_RULES) --output-dir $(NPL_OPENAPI_OUT)
+	npx --yes openapi-typescript-codegen \
+		--input "$$(find $(NPL_OPENAPI_OUT) -name '*.yaml' -o -name '*.yml' | head -1)" \
+		--output frontend/src/generated \
+		--client fetch --useOptions --useUnionTypes
 
 .PHONY: verify-auth
 verify-auth:
@@ -116,7 +120,7 @@ logs-engine:
 .PHONY: clean
 clean:
 	docker compose --profile app down -v
-	rm -rf npl/target
+	rm -rf $(NPL_OPENAPI_OUT)
 	rm -rf frontend/node_modules frontend/dist frontend/build frontend/src/generated
 	rm -rf keycloak-provisioning/state.tfstate*
 	rm -rf keycloak-provisioning/.terraform*

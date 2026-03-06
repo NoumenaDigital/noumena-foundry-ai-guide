@@ -6,7 +6,7 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 
 > ⚠️ **CRITICAL: NPL First, Then TypeScript**
 > 
-> You **MUST** complete and compile the NPL protocols **BEFORE** working on TypeScript frontend code. The frontend depends on the OpenAPI-generated client which is only available after running `mvn package` on the NPL project.
+> You **MUST** complete and compile the NPL protocols **BEFORE** working on TypeScript frontend code. The frontend depends on the OpenAPI-generated client which is only available after running `npl openapi` on the NPL project.
 >
 > If you try to write frontend TypeScript before generating the API client, you will encounter missing type definitions and be forced to use forbidden mock data.
 
@@ -29,7 +29,7 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 │                              ↓                                              │
 │                   ┌────────────────────┐                                   │
 │                   │ ⛔ COMPILE NPL     │                                   │
-│                   │ mvn package        │                                   │
+│                   │ npl openapi        │                                   │
 │                   │ Verify: OpenAPI    │                                   │
 │                   └────────────────────┘                                   │
 │                              ↓                                              │
@@ -81,7 +81,7 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 ### Prerequisites (Before Starting)
 
 - [ ] Docker installed and running
-- [ ] Maven 3.6+ installed
+- [ ] NPL CLI installed (`npl version` works)
 - [ ] Node.js 18+ installed
 - [ ] Git repository initialized
 
@@ -89,13 +89,11 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 
 **Action:** Set up the complete application infrastructure:
 
-1. Create `docker-compose.yml` with all services
-2. Create `Makefile` with build/deployment commands
-3. Create `.env` file with environment variables
-4. Configure Nginx proxy
-5. Set up database initialization
+1. Verfiy `docker-compose.yml` with all services
+2. Verify `Makefile` with build/deployment commands
+3. Verify `.env` file with environment variables both in root and frontend
 
-**Reference:** [01-PROJECT-SETUP.md](./01-PROJECT-SETUP.md)
+
 
 ### Step 1.2: Verify Infrastructure
 
@@ -104,7 +102,6 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 - ✅ Engine: http://localhost:12000/actuator/health
 - ✅ Keycloak: http://localhost:11000
 - ✅ Database: Port 5432
-- ✅ RabbitMQ: Port 5672
 - ✅ GraphQL: http://localhost:15001/graphql
 
 ### Step 1.3: Develop NPL Protocols
@@ -135,22 +132,21 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 **You MUST complete this checkpoint before proceeding to Phase 2.**
 
 ```bash
-# 1. Compile NPL protocols
-cd npl
-mvn package
+# 1. Validate NPL sources
+npl check --source-dir npl/src/main/npl-1.0
 
-# 2. VERIFY: Check for compilation errors
-# ✅ Build should complete with "BUILD SUCCESS"
-# ❌ If errors: Fix NPL syntax and recompile
+# 2. VERIFY: Check for errors
+# ✅ Should complete with no errors
+# ❌ If errors: Fix NPL syntax and re-check
 
-# 3. VERIFY: OpenAPI specification was generated
-ls target/generated-sources/openapi/
-# ✅ Should see: *-openapi.yml files
+# 3. Generate OpenAPI specification
+npl openapi --source-dir npl/src/main/npl-1.0 --rules npl/src/main/rules.yml --output-dir npl/target
+# ✅ Should see: *-openapi.yml in npl/target/
 # ❌ If empty: Check @api annotations on protocols
 
-# 4. Start backend services
-cd ..
-make up
+# 4. Start backend services and deploy NPL
+make infra
+npl deploy --source-dir npl/src/main/npl-1.0 --clear
 
 # 5. VERIFY: Services are healthy
 curl -s http://localhost:12000/actuator/health | grep UP
@@ -159,8 +155,8 @@ curl -s http://localhost:12000/actuator/health | grep UP
 
 ### Checkpoint 1 Checklist
 
-- [ ] `mvn package` completes without errors
-- [ ] OpenAPI files exist in `npl/target/generated-sources/openapi/`
+- [ ] `npl check` completes without errors
+- [ ] OpenAPI files exist in `npl/target/`
 - [ ] Backend services start successfully (`make up`)
 - [ ] Engine health check returns UP
 
@@ -303,14 +299,10 @@ Package: scheduling
 
 ### Step 3.4: Generate Sidebar Navigation
 
-**Action:** Create navigation items based on packages:
+**Action:** Create navigation items :
 
-1. Create `src/components/shared/SidebarNavigation.tsx`
-2. Generate menu items for each package
-3. Add sub-menu items for each protocol
-4. Link to overview pages
+- Consdier the user journey of the application and built a userfriendly navigation flow
 
-**Reference:** [05-SIDEBAR-NAVIGATION.md](./05-SIDEBAR-NAVIGATION.md)
 
 ### Step 3.5: Add Routes
 
@@ -580,7 +572,7 @@ export { Action2Button } from './Action2Button';
 Use this checklist to ensure completeness **and correct sequencing**:
 
 ### ⛔ Checkpoint 1: Backend Complete (Before Frontend)
-- [ ] NPL protocols compile without errors (`mvn package`)
+- [ ] NPL protocols validate without errors (`npl check`)
 - [ ] OpenAPI specification exists in `npl/target/generated-sources/openapi/`
 - [ ] Backend services start successfully (`make up`)
 - [ ] Engine health check returns UP
@@ -836,7 +828,6 @@ docker compose logs -f frontend
 | **Engine** | NPL compilation errors | Fix NPL syntax errors and rebuild |
 | **Engine** | Cannot connect to Keycloak | Ensure Keycloak is healthy before engine starts |
 | **Frontend** | TypeScript errors | Run `npm run build` locally to see errors |
-| **RabbitMQ** | Queue not found | Check AMQP_ROOT_QUEUE_NAME in .env matches definitions.json |
 
 ### Final Step 4: Verify All Services Are Running
 
