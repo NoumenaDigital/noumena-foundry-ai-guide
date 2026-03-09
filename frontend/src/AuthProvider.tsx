@@ -43,54 +43,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const kc = new Keycloak({
-      url: keycloakUrl,
-      realm,
-      clientId,
-    });
-
     const savedToken = localStorage.getItem('kc-token') || undefined;
     const savedRefreshToken = localStorage.getItem('kc-refresh-token') || undefined;
-
-    const saveTokens = () => {
-      if (kc.token) localStorage.setItem('kc-token', kc.token);
-      if (kc.refreshToken) localStorage.setItem('kc-refresh-token', kc.refreshToken);
-    };
-
-    kc.onAuthSuccess = saveTokens;
-    kc.onAuthRefreshSuccess = saveTokens;
-    kc.onAuthLogout = () => {
+    const clearStoredTokens = () => {
       localStorage.removeItem('kc-token');
       localStorage.removeItem('kc-refresh-token');
     };
 
-    kc.init({
+    const buildClient = () => new Keycloak({ url: keycloakUrl, realm, clientId });
+
+    const bindClientHandlers = (client: Keycloak) => {
+      const saveTokens = () => {
+        if (client.token) localStorage.setItem('kc-token', client.token);
+        if (client.refreshToken) localStorage.setItem('kc-refresh-token', client.refreshToken);
+      };
+
+      client.onAuthSuccess = saveTokens;
+      client.onAuthRefreshSuccess = saveTokens;
+      client.onAuthRefreshError = () => {
+        clearStoredTokens();
+      };
+      client.onAuthLogout = () => {
+        clearStoredTokens();
+        setAuthenticated(false);
+        setError(null);
+      };
+      client.onTokenExpired = () => {
+        client.updateToken(70).catch(() => {
+          console.warn('Token refresh failed — clearing local session');
+          clearStoredTokens();
+          client.clearToken();
+          setAuthenticated(false);
+        });
+      };
+    };
+
+    const baseInitOptions = {
       checkLoginIframe: false,
-      pkceMethod: 'S256',
+      pkceMethod: 'S256' as const,
+    };
+
+    const finishInit = (client: Keycloak, auth: boolean) => {
+      setKeycloak(client);
+      setAuthenticated(auth);
+      setError(null);
+      setLoading(false);
+    };
+
+    const failInit = (err: unknown) => {
+      console.error('Keycloak init failed:', err);
+      setError('Authentication service unavailable. Please try again later.');
+      setLoading(false);
+    };
+
+    const kc = buildClient();
+    bindClientHandlers(kc);
+
+    kc.init({
+      ...baseInitOptions,
       token: savedToken,
       refreshToken: savedRefreshToken,
     })
-      .then((auth) => {
-        setKeycloak(kc);
-        setAuthenticated(auth);
-        setLoading(false);
-        if (auth) saveTokens();
-      })
+      .then((auth) => finishInit(kc, auth))
       .catch((err) => {
-        console.error('Keycloak init failed:', err);
-        setError('Authentication service unavailable. Please try again later.');
-        setLoading(false);
+        // Common after logout/session expiry: refresh token exists locally but server session is gone.
+        if (savedToken || savedRefreshToken) {
+          console.warn('Stored Keycloak tokens are stale, retrying clean init.');
+          clearStoredTokens();
+          const freshClient = buildClient();
+          bindClientHandlers(freshClient);
+          freshClient.init(baseInitOptions)
+            .then((auth) => finishInit(freshClient, auth))
+            .catch(failInit);
+          return;
+        }
+        failInit(err);
       });
-
-    // Token refresh
-    kc.onTokenExpired = () => {
-      kc.updateToken(70).catch(() => {
-        console.warn('Token refresh failed — logging out');
-        localStorage.removeItem('kc-token');
-        localStorage.removeItem('kc-refresh-token');
-        kc.logout();
-      });
-    };
   }, []);
 
   const hasRole = (role: string): boolean => {

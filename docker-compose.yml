@@ -63,9 +63,9 @@ services:
       AMQP_POLLING_PERIOD_SECONDS: 1
     depends_on:
       engine-db:
-        condition: service_started
-      keycloak:
         condition: service_healthy
+      keycloak:
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:12000/actuator/health"]
       interval: 10s
@@ -91,7 +91,7 @@ services:
       HISTORY_STARTUP_HEALTH_CHECK_ATTEMPTS: 10
     depends_on:
       engine-db:
-        condition: service_started
+        condition: service_healthy
       engine:
         condition: service_healthy
 
@@ -114,9 +114,9 @@ services:
         http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
     depends_on:
       engine-db:
-        condition: service_started
-      keycloak:
         condition: service_healthy
+      keycloak:
+        condition: service_started
 
   # Keycloak Provisioning (runs after planning — not part of base infra)
   keycloak-provisioning:
@@ -137,7 +137,7 @@ services:
       - app
     depends_on:
       keycloak:
-        condition: service_healthy
+        condition: service_started
 
   # Keycloak
   # NOTE: Keycloak takes 10-30 seconds to start (database migrations, realm init).
@@ -176,9 +176,8 @@ services:
       KC_HTTP_PORT: 11000
     depends_on:
       keycloak-db:
-        condition: service_started
-    # NOTE: Keycloak health check uses curl (installed via multi-stage build in Dockerfile)
-    # Health endpoint is on port 11000, use localhost since check runs inside the container
+        condition: service_healthy
+    # Keep healthcheck simple and portable: curl is installed in the Keycloak image.
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11000/health/ready"]
       interval: 10s

@@ -250,6 +250,11 @@ npm run build
    const [dogs, setDogs] = useState<Dog[]>([]);
    ```
 
+4. **Public start page must match the implemented use case:**
+   - Do not leave generic placeholder copy on the unauthenticated landing screen.
+   - Update headline, description, and call-to-action context so users immediately understand the domain workflow (for example: provenance, compliance, allocation lifecycle, and role model).
+   - Ensure the public page messaging is aligned with the actual protocols and business process implemented in this project.
+
 ### Step 3.1: Scan NPL Codebase (Analysis)
 
 **Action:** Analyze all NPL files to identify:
@@ -636,6 +641,8 @@ Use this checklist to ensure completeness **and correct sequencing**:
 - [ ] Add custom CSS (`login.css`) with brand colors
 - [ ] Update `keycloak/Dockerfile` to copy theme files
 - [ ] Apply theme in Keycloak Admin Console or via configuration
+- [ ] Verify the selected theme is configured on the correct realm (not only on master/default realm)
+- [ ] Ensure theme naming/branding matches the realm use case and client-facing application context
 - [ ] Test login page displays correctly
 
 **Why Required:** The login page is the first impression users have of your application. A branded login experience is essential for professional applications.

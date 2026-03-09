@@ -7,6 +7,8 @@ RUN mkdir -p /output/usr/bin /output/usr/lib64 && \
     cp /usr/lib64/libcurl.so.4* /output/usr/lib64/ 2>/dev/null; \
     cp /usr/lib64/libnghttp2.so.14* /output/usr/lib64/ 2>/dev/null; \
     cp /usr/lib64/libidn2.so.0* /output/usr/lib64/ 2>/dev/null; \
+    cp /usr/lib64/libssl.so.3* /output/usr/lib64/ 2>/dev/null; \
+    cp /usr/lib64/libcrypto.so.3* /output/usr/lib64/ 2>/dev/null; \
     cp /usr/lib64/libzstd.so.1* /output/usr/lib64/ 2>/dev/null; \
     cp /usr/lib64/libunistring.so.2* /output/usr/lib64/ 2>/dev/null; \
     true

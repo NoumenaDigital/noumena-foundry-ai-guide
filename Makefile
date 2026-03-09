@@ -25,7 +25,10 @@ ensure-db-init-executable:
 # Start base infrastructure (all services except keycloak-provisioning and frontend)
 .PHONY: infra
 infra: ensure-db-init-executable
-	docker compose up --wait --build engine read-model history nginx-proxy
+	docker compose up -d --build engine read-model history nginx-proxy
+	@echo "Infra started in detached mode."
+	@echo "Run 'docker compose ps' to inspect service state."
+	@echo "Run 'make infra-health' for quick endpoint checks."
 
 # Stop all containers
 .PHONY: down

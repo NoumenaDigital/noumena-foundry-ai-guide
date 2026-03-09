@@ -18,7 +18,7 @@ COPY tsconfig*.json ./
 COPY vite.config.ts ./
 COPY index.html ./
 COPY src/ ./src/
-COPY public/ ./public/ 2>/dev/null || true
+COPY public/ ./public/
 
 RUN printf "VITE_ENGINE_URL=%s\nVITE_KEYCLOAK_URL=%s\nVITE_NC_KC_REALM=%s\nVITE_NC_KC_CLIENT_ID=%s\n" \
       "$VITE_ENGINE_URL" "$VITE_KEYCLOAK_URL" "$VITE_NC_KC_REALM" "$VITE_NC_KC_CLIENT_ID" \
