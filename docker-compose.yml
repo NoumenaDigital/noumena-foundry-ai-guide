@@ -33,9 +33,7 @@ services:
 
   # NPL Engine
   engine:
-    image: ghcr.io/noumenadigital/images/engine:${PLATFORM_VERSION}
-    build:
-      context: npl
+    image: ghcr.io/noumenadigital/images/engine:latest
     ports:
       - "12000:12000"
       - "12400:12400"

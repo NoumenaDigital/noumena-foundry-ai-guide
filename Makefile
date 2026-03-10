@@ -1,4 +1,4 @@
-include .env
+-include .env
 
 GITHUB_SHA=HEAD
 NPL_SOURCE_DIR=npl/src/main/npl-1.0
@@ -6,11 +6,11 @@ NPL_RULES=npl/src/main/rules.yml
 NPL_OPENAPI_OUT=npl/target
 
 ifeq ($(OS),Windows_NT)
-PROVISION_SETUP = if not exist .docker-anon mkdir .docker-anon
-PROVISION_RUN = set DOCKER_CONFIG=.docker-anon && docker compose --profile app up -d --build keycloak-provisioning
+DOCKER_SETUP = if not exist .docker-anon mkdir .docker-anon
+DOCKER_COMPOSE = set DOCKER_CONFIG=.docker-anon && docker compose
 else
-PROVISION_SETUP = mkdir -p .docker-anon
-PROVISION_RUN = DOCKER_CONFIG=.docker-anon docker compose --profile app up -d --build keycloak-provisioning
+DOCKER_SETUP = mkdir -p .docker-anon
+DOCKER_COMPOSE = DOCKER_CONFIG=.docker-anon docker compose
 endif
 
 ## ============================================================================
@@ -22,30 +22,34 @@ endif
 ensure-db-init-executable:
 	@echo "Skipping chmod on Windows host"
 
+.PHONY: ensure-docker-config
+ensure-docker-config:
+	$(DOCKER_SETUP)
+
 # Start base infrastructure (all services except keycloak-provisioning and frontend)
 .PHONY: infra
-infra: ensure-db-init-executable
-	docker compose up -d --build engine read-model history nginx-proxy
+infra: ensure-db-init-executable ensure-docker-config
+	$(DOCKER_COMPOSE) up -d --build engine read-model history nginx-proxy
 	@echo "Infra started in detached mode."
 	@echo "Run 'docker compose ps' to inspect service state."
 	@echo "Run 'make infra-health' for quick endpoint checks."
 
 # Stop all containers
 .PHONY: down
-down:
-	docker compose down
+down: ensure-docker-config
+	$(DOCKER_COMPOSE) down
 
 # Full reset — destroy volumes and rebuild everything
 .PHONY: reset
-reset: ensure-db-init-executable
-	docker compose down -v
-	docker compose up --wait --build engine read-model history nginx-proxy
+reset: ensure-db-init-executable ensure-docker-config
+	$(DOCKER_COMPOSE) down -v
+	$(DOCKER_COMPOSE) up --wait --build engine read-model history nginx-proxy
 
 # Check infrastructure health
 .PHONY: infra-health
-infra-health:
+infra-health: ensure-docker-config
 	@echo "=== Container Status ==="
-	@docker compose ps
+	@$(DOCKER_COMPOSE) ps
 	@echo ""
 	@echo "=== Keycloak ==="
 	@curl -sf http://host.docker.internal:11000/health/ready > /dev/null && echo "OK" || echo "UNHEALTHY"
@@ -59,9 +63,8 @@ infra-health:
 
 # Provision Keycloak (create realm, roles, users from terraform.tf)
 .PHONY: provision
-provision:
-	$(PROVISION_SETUP)
-	$(PROVISION_RUN)
+provision: ensure-docker-config
+	$(DOCKER_COMPOSE) --profile app up -d --build keycloak-provisioning
 
 # Deploy NPL to running engine
 .PHONY: npl-deploy
@@ -77,15 +80,15 @@ npl-test:
 # Full app startup (infra + provision + npl + frontend)
 .PHONY: up
 up: infra provision npl-deploy
-	docker compose up -d frontend
+	$(DOCKER_COMPOSE) up -d frontend
 
 ## ============================================================================
 ## FRONTEND
 ## ============================================================================
 
 .PHONY: frontend
-frontend:
-	docker compose up -d --build frontend
+frontend: ensure-docker-config
+	$(DOCKER_COMPOSE) up -d --build frontend
 
 .PHONY: frontend-build
 frontend-build:
@@ -97,6 +100,14 @@ frontend-dev:
 
 .PHONY: generate-api
 generate-api:
+ifeq ($(OS),Windows_NT)
+	wsl bash -ic "cd \"$$(wslpath '$(CURDIR)')\" && make generate-api-linux"
+else
+	$(MAKE) generate-api-linux
+endif
+
+.PHONY: generate-api-linux
+generate-api-linux:
 	npl openapi --source-dir $(NPL_SOURCE_DIR) --rules $(NPL_RULES) --output-dir $(NPL_OPENAPI_OUT)
 	npx --yes openapi-typescript-codegen \
 		--input "$$(find $(NPL_OPENAPI_OUT) -name '*.yaml' -o -name '*.yml' | head -1)" \
@@ -113,16 +124,16 @@ verify-auth:
 ## ============================================================================
 
 .PHONY: logs
-logs:
-	docker compose logs -f
+logs: ensure-docker-config
+	$(DOCKER_COMPOSE) logs -f
 
 .PHONY: logs-engine
-logs-engine:
-	docker compose logs -f engine
+logs-engine: ensure-docker-config
+	$(DOCKER_COMPOSE) logs -f engine
 
 .PHONY: clean
-clean:
-	docker compose --profile app down -v
+clean: ensure-docker-config
+	$(DOCKER_COMPOSE) --profile app down -v
 	rm -rf $(NPL_OPENAPI_OUT)
 	rm -rf frontend/node_modules frontend/dist frontend/build frontend/src/generated
 	rm -rf keycloak-provisioning/state.tfstate*
