@@ -491,9 +491,8 @@ type _Party = {
   "@parties": {
     "member": {
       "claims": {
-        "entity": ["Identifier:member1@example.com"],
-        "roles": ["member"],
-        "email": ["member1@example.com"]
+        "email": ["member1@example.com"],
+        "roles": ["member"]
       }
     }
   }
@@ -504,13 +503,13 @@ type _Party = {
 
 ```json
 // ❌ WRONG — missing "claims" wrapper
-{ "member": { "entity": ["Identifier:user@example.com"] } }
+{ "member": { "email": ["user@example.com"] } }
 
 // ❌ WRONG — "access" is not a standard claims key
-{ "member": { "claims": { "entity": ["Identifier:user@example.com"], "access": [] } } }
+{ "member": { "claims": { "email": ["user@example.com"], "access": [] } } }
 
 // ❌ WRONG — values must be arrays of strings, not plain strings
-{ "member": { "claims": { "entity": "Identifier:user@example.com" } } }
+{ "member": { "claims": { "email": "user@example.com" } } }
 ```
 
 ### `require` rules validate `@parties` claims
@@ -547,7 +546,7 @@ The `member` party has a `require` rule checking for `roles: [member]`. When the
   "@parties": {
     "member": {
       "claims": {
-        "entity": ["Identifier:member1@example.com"],
+        "email": ["member1@example.com"],
         "roles": ["member"]
       }
     }
@@ -577,7 +576,7 @@ curl -X POST http://localhost:12001/npl/fitness/Subscription/ \
     "@parties": {
       "member": {
         "claims": {
-          "entity": ["Identifier:member1@myapp.local"],
+          "email": ["member1@myapp.local"],
           "roles": ["member"]
         }
       }
