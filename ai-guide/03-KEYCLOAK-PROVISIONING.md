@@ -11,7 +11,7 @@ This guide explains how to **automatically generate Keycloak roles and users** b
 > **Why mandatory:**
 > - The login page is the first impression users have of your application
 > - A branded login experience is essential for professional applications
-> - This is a required feature that must be completed (see [11-STEP-BY-STEP.md](./11-STEP-BY-STEP.md#phase-4-required-features-must-implement))
+> - This is a required feature that must be completed (see [00-STEP-BY-STEP.md](./00-STEP-BY-STEP.md#phase-4-required-features-must-implement))
 > 
 > **Before proceeding:** Ensure you have created your custom theme in `keycloak/theme/APPNAME/` and updated the `login_theme` variable in `terraform.tf`.
 

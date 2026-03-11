@@ -33,7 +33,7 @@ services:
 
   # NPL Engine
   engine:
-    image: ghcr.io/noumenadigital/images/engine:latest
+    image: ghcr.io/noumenadigital/images/engine:${PLATFORM_VERSION}
     ports:
       - "12000:12000"
       - "12400:12400"
@@ -48,7 +48,8 @@ services:
       ENGINE_DB_HISTORY_USER: history
       ENGINE_DB_HISTORY_SCHEMA: history
       ENGINE_DB_READ_MODEL_USER: read-model
-      ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
+      ENGINE_MANAGEMENT_HOST: 0.0.0.0
+      ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM},http://keycloak.localtest.me:11000/realms/${VITE_NC_KC_REALM}
       SWAGGER_ENGINE_URL: http://localhost:12000
       SWAGGER_SECURITY_AUTH_URL: http://localhost:11000/realms/${VITE_NC_KC_REALM}
       SWAGGER_SECURITY_CLIENT_ID: ${VITE_NC_KC_CLIENT_ID}
@@ -64,6 +65,8 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_started
+    extra_hosts:
+      - "keycloak.localtest.me:host-gateway"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:12000/actuator/health"]
       interval: 10s
@@ -109,12 +112,15 @@ services:
       READ_MODEL_ALLOWED_ISSUERS: >
         http://keycloak:11000/realms/${VITE_NC_KC_REALM},
         http://localhost:11000/realms/${VITE_NC_KC_REALM},
-        http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
+        http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM},
+        http://keycloak.localtest.me:11000/realms/${VITE_NC_KC_REALM}
     depends_on:
       engine-db:
         condition: service_healthy
       keycloak:
         condition: service_started
+    extra_hosts:
+      - "keycloak.localtest.me:host-gateway"
 
   # Keycloak Provisioning (runs after planning — not part of base infra)
   keycloak-provisioning:
@@ -154,6 +160,8 @@ services:
       start-dev
       --spi-events-listener-jboss-logging-success-level=info
       --spi-events-listener-jboss-logging-error-level=error
+      --hostname=keycloak.localtest.me
+      --hostname-port=11000
       --hostname-strict=false
       --health-enabled=true
       --http-enabled=true

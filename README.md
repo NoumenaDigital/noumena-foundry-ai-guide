@@ -44,7 +44,7 @@ Before starting, ensure you have:
 
 ### 4. Follow the Sequential Workflow
 
-The development **MUST** happen in strict sequential phases, which is described in 11-STEP-BY-STEP.md, here a summary:
+The development **MUST** happen in strict sequential phases, which is described in 00-STEP-BY-STEP.md, here a summary:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -88,7 +88,7 @@ ai-guide-npl/
 │   ├── 08-CREATION-FORMS.md           # Creation forms
 │   ├── 09-ACTION-BUTTONS.md           # Action buttons
 │   ├── 10-CODE-TEMPLATES.md           # Code templates
-│   ├── 11-STEP-BY-STEP.md             # Complete workflow
+│   ├── 00-STEP-BY-STEP.md             # Complete workflow
 │   ├── 12-LOCALIZATION.md             # Internationalization
 │   ├── 13-KEYCLOAK-THEMING.md         # Keycloak theming
 │   ├── 14-TROUBLESHOOTING.md          # Troubleshooting guide
@@ -158,7 +158,7 @@ npm run build  # Verify TypeScript compiles
 
 For a detailed step-by-step workflow, see:
 - **[QUICK-START.md](./ai-guide/QUICK-START.md)** - Fast-track workflow (45-90 minutes)
-- **[11-STEP-BY-STEP.md](./ai-guide/11-STEP-BY-STEP.md)** - Complete detailed workflow
+- **[00-STEP-BY-STEP.md](./ai-guide/00-STEP-BY-STEP.md)** - Complete detailed workflow
 
 ## Key Technologies
 
@@ -207,7 +207,7 @@ These features are **REQUIRED** and must be implemented before the application i
 
 ### Documentation
 - **[README.md](./ai-guide/README.md)** - Complete guide overview
-- **[11-STEP-BY-STEP.md](./ai-guide/11-STEP-BY-STEP.md)** - Detailed Step by step guide 
+- **[00-STEP-BY-STEP.md](./ai-guide/00-STEP-BY-STEP.md)** - Detailed Step by step guide 
 - **[10-CODE-TEMPLATES.md](./ai-guide/10-CODE-TEMPLATES.md)** - All code templates
 - **[14-TROUBLESHOOTING.md](./ai-guide/14-TROUBLESHOOTING.md)** - Common issues and solutions
 

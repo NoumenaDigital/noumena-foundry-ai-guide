@@ -1,8 +1,19 @@
-# 11 - Step-by-Step Generation Workflow
+# 00 - Step-by-Step Generation Workflow
 
 ## Overview
 
 This guide provides a complete, step-by-step workflow for generating a frontend from NPL protocols. Follow these steps in order to create a complete, production-ready frontend application.
+
+> ⚠️ **CRITICAL: Local Config Setup Comes First**
+>
+> Before running **any** infra, deploy, or generation command, the agent must create and validate:
+>
+> - root `.env`
+> - `frontend/.env`
+> - root `npl.yml`
+>
+> Use **[01-LOCAL-CONFIG-FILES.md](./01-LOCAL-CONFIG-FILES.md)** as the source of truth.  
+> If these files are missing or inconsistent, the workflow will fail later with avoidable errors (missing env vars, auth failures, deploy failures).
 
 > ⚠️ **CRITICAL: NPL First, Then TypeScript**
 > 
@@ -29,7 +40,8 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 │                              ↓                                              │
 │                   ┌────────────────────┐                                   │
 │                   │ ⛔ COMPILE NPL     │                                   │
-│                   │ npl openapi        │                                   │
+│                   │ npl check          │                                   │
+│                   │ make generate-api  │                                   │
 │                   │ Verify: OpenAPI    │                                   │
 │                   └────────────────────┘                                   │
 │                              ↓                                              │
@@ -84,6 +96,7 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 - [ ] NPL CLI installed (`npl version` works)
 - [ ] Node.js 18+ installed
 - [ ] Git repository initialized
+- [ ] Local config files created and validated (see `01-LOCAL-CONFIG-FILES.md`)
 
 ### Step 1.1: Setup Application Infrastructure
 
@@ -132,32 +145,26 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 **You MUST complete this checkpoint before proceeding to Phase 2.**
 
 ```bash
-# 1. Validate NPL sources
-npl check --source-dir npl/src/main/npl-1.0
+# 1. Validate, compile, and generate OpenAPI
+make generate-api
 
 # 2. VERIFY: Check for errors
-# ✅ Should complete with no errors
-# ❌ If errors: Fix NPL syntax and re-check
-
-# 3. Generate OpenAPI specification
-npl openapi --source-dir npl/src/main/npl-1.0 --rules npl/src/main/rules.yml --output-dir npl/target
-# ✅ Should see: *-openapi.yml in npl/target/
+# ✅ Should complete with no errors and generate frontend/src/generated/*
 # ❌ If empty: Check @api annotations on protocols
 
-# 4. Start backend services and deploy NPL
-make infra
-npl deploy --source-dir npl/src/main/npl-1.0 --clear
+# 3. Start backend services and deploy NPL package
+make npl-deploy
 
-# 5. VERIFY: Services are healthy
+# 4. VERIFY: Services are healthy
 curl -s http://localhost:12000/actuator/health | grep UP
 # ✅ Should return: "status":"UP"
 ```
 
 ### Checkpoint 1 Checklist
 
-- [ ] `npl check` completes without errors
+- [ ] `make generate-api` completes without errors
 - [ ] OpenAPI files exist in `npl/target/`
-- [ ] Backend services start successfully (`make up`)
+- [ ] `make npl-deploy` completes successfully
 - [ ] Engine health check returns UP
 
 **❌ DO NOT proceed to Phase 2 until ALL items are checked.**

@@ -2,6 +2,7 @@
 
 GITHUB_SHA=HEAD
 NPL_SOURCE_DIR=npl/src/main/npl-1.0
+NPL_DEPLOY_SOURCE_DIR=npl/src/main
 NPL_RULES=npl/src/main/rules.yml
 NPL_OPENAPI_OUT=npl/target
 
@@ -70,7 +71,7 @@ provision: ensure-docker-config
 .PHONY: npl-deploy
 npl-deploy:
 	npl check --source-dir $(NPL_SOURCE_DIR)
-	npl deploy --source-dir $(NPL_SOURCE_DIR) --clear
+	npl deploy --source-dir $(NPL_DEPLOY_SOURCE_DIR) --clear
 
 # Run NPL tests
 .PHONY: npl-test
@@ -110,7 +111,7 @@ endif
 generate-api-linux:
 	npl openapi --source-dir $(NPL_SOURCE_DIR) --rules $(NPL_RULES) --output-dir $(NPL_OPENAPI_OUT)
 	npx --yes openapi-typescript-codegen \
-		--input "$$(find $(NPL_OPENAPI_OUT) -name '*.yaml' -o -name '*.yml' | head -1)" \
+		--input "$$(if [ -d $(NPL_OPENAPI_OUT)/openapi ]; then find $(NPL_OPENAPI_OUT)/openapi -name '*.yaml' -o -name '*.yml' | head -1; else find $(NPL_OPENAPI_OUT) -name '*.yaml' -o -name '*.yml' | head -1; fi)" \
 		--output frontend/src/generated \
 		--client fetch --useOptions --useUnionTypes
 

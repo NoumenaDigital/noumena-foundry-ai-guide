@@ -1542,5 +1542,5 @@ See the actual implementation in the codebase. Key features:
 ## Next Steps
 
 Once you have all templates, proceed to:
-- [11-STEP-BY-STEP.md](./11-STEP-BY-STEP.md) - Complete step-by-step generation workflow
+- [00-STEP-BY-STEP.md](./00-STEP-BY-STEP.md) - Complete step-by-step generation workflow
 
