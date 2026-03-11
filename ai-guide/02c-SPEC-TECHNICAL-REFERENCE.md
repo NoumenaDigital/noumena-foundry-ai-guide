@@ -29,7 +29,25 @@ For full NPL syntax and code-writing details, see `02-NPL-DEVELOPMENT.md`.
 > - `isAfter()` / `isBefore()` on `LocalDate`
 > - `periodOfMonths()`, `periodOfDays()` functions
 >
-> **Workaround:** Use `DateTime` for comparisons where possible, or store computed dates at creation time rather than calculating them at runtime. Avoid business logic that requires date arithmetic on `LocalDate`.
+> **What works:**
+> - `now()` returns the current `DateTime`
+> - `DateTime` comparison: `dateTime1.isBefore(dateTime2)`, `dateTime1.isAfter(dateTime2)`
+> - `LocalDate` to string: `localDate.toString()` (returns ISO format e.g. `"2026-03-15"`)
+> - Construction: `localDateOf(2026, 3, 15)`, `dateTimeOf(2026, 3, 15, 9, 0, 0)`
+>
+> **Recommended pattern:** Store dates as `Text` (e.g. `"2026-03-15"`) when you need to compare or compute dates. Use string comparison for date ordering (`"2026-03-15" > "2026-03-01"` works because ISO format sorts lexicographically). Only use `LocalDate`/`DateTime` when you need the type safety and don't need arithmetic.
+>
+> ```npl
+> // Example: use Text for dates that need comparison
+> var scheduledDate: Text,  // "2026-03-15" — can compare with > < operators
+> var expiryDate: Text,     // "2027-03-01" — string comparison works for ISO dates
+>
+> // Example: pre-compute penalty end date at creation time
+> permission[admin] applyPenalty(penaltyEndDate: Text) | active {
+>     require(penaltyEndDate > scheduledDate, "Penalty end must be after scheduled date");
+>     // ...
+> };
+> ```
 
 ### Collection & Wrapper Types
 

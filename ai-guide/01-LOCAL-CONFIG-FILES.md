@@ -72,6 +72,13 @@ VITE_NC_KC_CLIENT_ID=<app-client-id>
 - Vite only reads env files from the frontend app folder.
 - If this file is missing, login and API config fail in browser runtime.
 
+> **Why `keycloak.localtest.me` instead of `localhost`?**
+> The Keycloak hostname must be reachable from **both** the browser and inside Docker containers.
+> The engine extracts the issuer URL from the JWT token and fetches JWKS from it to validate signatures.
+> `localhost` fails inside containers (it points to the container itself, not the host machine).
+> `keycloak.localtest.me` resolves to `127.0.0.1` from the host, and the `extra_hosts` entries in
+> docker-compose map it to the host inside containers — so the same URL works everywhere.
+
 ---
 
 ## 3) Create root `npl.yml`

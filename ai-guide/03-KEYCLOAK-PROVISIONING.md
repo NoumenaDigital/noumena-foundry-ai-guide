@@ -221,10 +221,20 @@ resource "keycloak_openid_client" "paas_client" {
 
 **IMPORTANT:** Protocol mappers expose claims in the JWT token that can be used in `rules.yml`. Without these mappers, claims like `roles` won't be available as flat claims in the token.
 
+> ⚠️ **Protocol mappers are per-client.** Each Keycloak client has its own set of mappers. If you add
+> a `roles` mapper to the app client but not to the `paas` client, tokens obtained via `paas`
+> (e.g. from seed scripts or `npl deploy`) will NOT have the flat `roles` claim — causing
+> `'REQUIRE' rule criteria not met` errors. **Add the same mappers to every client that needs
+> party automation claims.**
+
 ```hcl
 # ============================================================================
 # Protocol Mappers - Expose claims in JWT token
 # ============================================================================
+# IMPORTANT: These mappers must be added to EVERY client that obtains tokens
+# used for protocol creation (app client, paas client, any seed/test client).
+
+# --- App client mappers ---
 
 # Realm roles mapper - exposes realm_access.roles as flat "roles" claim
 # CRITICAL: This is required for rules.yml to access roles via the "roles" claim
@@ -244,6 +254,32 @@ resource "keycloak_openid_user_realm_role_protocol_mapper" "realm_roles" {
 resource "keycloak_openid_user_attribute_protocol_mapper" "email" {
   realm_id  = keycloak_realm.realm.id
   client_id = keycloak_openid_client.client.id
+  name      = "email-mapper"
+
+  user_attribute      = "email"
+  claim_name          = "email"
+  add_to_id_token     = true
+  add_to_access_token = true
+  add_to_userinfo     = true
+}
+
+# --- paas client mappers (same claims, different client) ---
+
+resource "keycloak_openid_user_realm_role_protocol_mapper" "paas_realm_roles" {
+  realm_id  = keycloak_realm.realm.id
+  client_id = keycloak_openid_client.paas_client.id
+  name      = "realm-roles-mapper"
+
+  claim_name          = "roles"
+  multivalued         = true
+  add_to_id_token     = true
+  add_to_access_token = true
+  add_to_userinfo     = true
+}
+
+resource "keycloak_openid_user_attribute_protocol_mapper" "paas_email" {
+  realm_id  = keycloak_realm.realm.id
+  client_id = keycloak_openid_client.paas_client.id
   name      = "email-mapper"
 
   user_attribute      = "email"
@@ -771,6 +807,21 @@ fi
 ```
 
 > **Note:** The Foundry build system automatically patches `local.sh` with this block during post-phase infrastructure enforcement. If you see the error in a manually-created project, add the block above.
+
+### `'REQUIRE' rule criteria not met` when creating protocols via seed script or CLI
+
+**Symptom:** Seed scripts or API calls using the `paas` client fail with:
+```
+Failed to extract access claim: roles
+```
+or:
+```
+'REQUIRE' rule criteria not met for 'member'
+```
+
+**Cause:** The `paas` client is missing protocol mappers. Each Keycloak client has its **own** set of mappers — adding a `roles` mapper to the app client does NOT make it available on `paas`. Without the mapper, the JWT token has `realm_access.roles` (nested) instead of `roles` (flat), so `rules.yml` can't find the claim.
+
+**Fix:** Add the same protocol mappers (realm roles, email) to both the app client and the `paas` client in `terraform.tf`. See the "Protocol Mappers" section above.
 
 ### Roles not appearing
 - Check Terraform apply logs

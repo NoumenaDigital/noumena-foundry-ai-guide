@@ -474,6 +474,117 @@ issuetracker.Issue:
 
 **Frontend:** Pass empty `@parties: {}` - all parties handled by automation.
 
+## The `@parties` JSON Format
+
+When passing parties via the API (for parties not auto-assigned by `extract` or `set`), you must use the correct JSON structure. The `_Party` type is:
+
+```typescript
+type _Party = {
+    claims: Record<string, Array<string>>;
+};
+```
+
+### Correct format
+
+```json
+{
+  "@parties": {
+    "member": {
+      "claims": {
+        "entity": ["Identifier:member1@example.com"],
+        "roles": ["member"],
+        "email": ["member1@example.com"]
+      }
+    }
+  }
+}
+```
+
+### Common mistakes
+
+```json
+// ❌ WRONG — missing "claims" wrapper
+{ "member": { "entity": ["Identifier:user@example.com"] } }
+
+// ❌ WRONG — "access" is not a standard claims key
+{ "member": { "claims": { "entity": ["Identifier:user@example.com"], "access": [] } } }
+
+// ❌ WRONG — values must be arrays of strings, not plain strings
+{ "member": { "claims": { "entity": "Identifier:user@example.com" } } }
+```
+
+### `require` rules validate `@parties` claims
+
+> ⚠️ **Critical:** When a party has a `require` rule, the claims you pass in `@parties` must satisfy that rule. The engine validates ALL parties — including those passed by the caller, not just those extracted from the JWT.
+
+**Example:** Given this `rules.yml`:
+```yaml
+fitness.Subscription:
+  admin:
+    extract:
+      claims:
+        - roles
+        - email
+    require:
+      claims:
+        roles:
+          - admin
+  member:
+    require:
+      claims:
+        roles:
+          - member
+```
+
+The `member` party has a `require` rule checking for `roles: [member]`. When the admin creates a Subscription and passes the member via `@parties`, the payload **must include the `roles` claim**:
+
+```json
+{
+  "memberEmail": "member1@example.com",
+  "plan": "PREMIUM",
+  "startDate": "2026-01-01",
+  "endDate": "2027-01-01",
+  "@parties": {
+    "member": {
+      "claims": {
+        "entity": ["Identifier:member1@example.com"],
+        "roles": ["member"]
+      }
+    }
+  }
+}
+```
+
+Without `"roles": ["member"]`, the engine returns:
+```
+'REQUIRE' rule criteria not met for 'member'.
+```
+
+**curl example:**
+```bash
+TOKEN=$(curl -s http://keycloak.localtest.me:11000/realms/myapp/protocol/openid-connect/token \
+  -d "grant_type=password&client_id=myapp&username=admin@myapp.local&password=welcome" \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+
+curl -X POST http://localhost:12001/npl/fitness/Subscription/ \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "memberEmail": "member1@myapp.local",
+    "plan": "PREMIUM",
+    "startDate": "2026-01-01",
+    "endDate": "2027-01-01",
+    "@parties": {
+      "member": {
+        "claims": {
+          "entity": ["Identifier:member1@myapp.local"],
+          "roles": ["member"]
+        }
+      }
+    }
+  }'
+```
+
 ## Frontend Integration
 
 ### When All Parties Are Automated

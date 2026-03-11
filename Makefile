@@ -6,14 +6,20 @@ NPL_DEPLOY_SOURCE_DIR=npl/src/main
 NPL_RULES=npl/src/main/rules.yml
 NPL_OPENAPI_OUT=npl/target
 
-# Use DOCKER_CONFIG=.docker-anon to avoid Docker Hub rate limits with anonymous pulls.
-# Set DOCKER_COMPOSE_CMD=docker compose to override if this causes issues on your system.
+# Docker Compose command configuration.
+# DOCKER_CONFIG=.docker-anon avoids Docker Hub rate limits with anonymous pulls,
+# but breaks Compose v2 plugin discovery on macOS/Linux because Docker looks for
+# CLI plugins in .docker-anon/cli-plugins/ (which is empty) instead of ~/.docker/cli-plugins/.
+# Fix: symlink the real cli-plugins directory into the anonymous config directory.
 DOCKER_COMPOSE_CMD ?= docker compose
 ifeq ($(OS),Windows_NT)
 DOCKER_SETUP = powershell -NoProfile -Command "if (!(Test-Path '.docker-anon')) { New-Item -ItemType Directory '.docker-anon' | Out-Null }"
 DOCKER_COMPOSE = powershell -NoProfile -Command "$$env:DOCKER_CONFIG='.docker-anon'; $(DOCKER_COMPOSE_CMD)"
 else
-DOCKER_SETUP = mkdir -p .docker-anon
+DOCKER_SETUP = mkdir -p .docker-anon && \
+	if [ -d "$$HOME/.docker/cli-plugins" ] && [ ! -e ".docker-anon/cli-plugins" ]; then \
+		ln -s "$$HOME/.docker/cli-plugins" .docker-anon/cli-plugins; \
+	fi
 DOCKER_COMPOSE = DOCKER_CONFIG=.docker-anon $(DOCKER_COMPOSE_CMD)
 endif
 
@@ -129,6 +135,10 @@ logs: ensure-docker-config
 .PHONY: logs-engine
 logs-engine: ensure-docker-config
 	$(DOCKER_COMPOSE) logs -f engine
+
+.PHONY: seed
+seed:
+	python3 seed/seed.py
 
 .PHONY: clean
 clean: ensure-docker-config
