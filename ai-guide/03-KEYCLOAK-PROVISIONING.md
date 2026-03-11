@@ -15,6 +15,15 @@ This guide explains how to **automatically generate Keycloak roles and users** b
 > 
 > **Before proceeding:** Ensure you have created your custom theme in `keycloak/theme/APPNAME/` and updated the `login_theme` variable in `terraform.tf`.
 
+> ⚠️ **CRITICAL: Provision `paas` client for NPL CLI deploy**
+>
+> `npl deploy` uses password-grant auth and implicitly expects a Keycloak client with `client_id=paas`.
+> If this client is missing, deploy commonly fails with:
+> - `Invalid client`
+> - `Invalid client credentials`
+>
+> This is **required for local deploy workflows** and must be present in `keycloak-provisioning/terraform.tf`.
+
 ## Concept
 
 ### NPL Protocol Parties
@@ -186,6 +195,23 @@ resource "keycloak_openid_client" "client" {
   web_origins                  = [
     "http://localhost:${var.frontend_port}",
     "*"  # Fallback for development - remove in production
+  ]
+  web_origins                  = ["*"]
+}
+
+# CRITICAL: NPL CLI deploy client (required by npl deploy password-grant flow)
+resource "keycloak_openid_client" "paas_client" {
+  realm_id                     = keycloak_realm.realm.id
+  client_id                    = "paas"
+  name                         = "NPL CLI Client"
+  enabled                      = true
+  access_type                  = "PUBLIC"
+  standard_flow_enabled        = true
+  direct_access_grants_enabled = true
+  valid_redirect_uris          = [
+    "http://localhost:${var.frontend_port}/*",
+    "http://localhost:${var.frontend_port}",
+    "*"
   ]
   web_origins                  = ["*"]
 }

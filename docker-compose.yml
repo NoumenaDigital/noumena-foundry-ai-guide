@@ -22,7 +22,7 @@ services:
       READ_MODEL_DB_USER: read-model
       READ_MODEL_DB_PASSWORD: secret
     volumes:
-      - ./db_init/db_init.sh:/docker-entrypoint-initdb.d/db_init.sh
+      - ./db_init/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql:ro
     healthcheck:
       test: pg_isready -U postgres
       interval: 1s
@@ -184,7 +184,7 @@ services:
         condition: service_healthy
     # Keep healthcheck simple and portable: curl is installed in the Keycloak image.
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11000/health/ready"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:11000/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 30

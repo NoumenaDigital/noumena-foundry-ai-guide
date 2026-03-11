@@ -7,8 +7,8 @@ NPL_RULES=npl/src/main/rules.yml
 NPL_OPENAPI_OUT=npl/target
 
 ifeq ($(OS),Windows_NT)
-DOCKER_SETUP = if not exist .docker-anon mkdir .docker-anon
-DOCKER_COMPOSE = set DOCKER_CONFIG=.docker-anon && docker compose
+DOCKER_SETUP = powershell -NoProfile -Command "if (!(Test-Path '.docker-anon')) { New-Item -ItemType Directory '.docker-anon' | Out-Null }"
+DOCKER_COMPOSE = powershell -NoProfile -Command "$$env:DOCKER_CONFIG='.docker-anon'; docker compose"
 else
 DOCKER_SETUP = mkdir -p .docker-anon
 DOCKER_COMPOSE = DOCKER_CONFIG=.docker-anon docker compose
@@ -18,18 +18,13 @@ endif
 ## BASE INFRASTRUCTURE — run once, always ready
 ## ============================================================================
 
-# Ensure database init script is executable (required for PostgreSQL initialization)
-.PHONY: ensure-db-init-executable
-ensure-db-init-executable:
-	@echo "Skipping chmod on Windows host"
-
 .PHONY: ensure-docker-config
 ensure-docker-config:
 	$(DOCKER_SETUP)
 
 # Start base infrastructure (all services except keycloak-provisioning and frontend)
 .PHONY: infra
-infra: ensure-db-init-executable ensure-docker-config
+infra: ensure-docker-config
 	$(DOCKER_COMPOSE) up -d --build engine read-model history nginx-proxy
 	@echo "Infra started in detached mode."
 	@echo "Run 'docker compose ps' to inspect service state."
@@ -42,7 +37,7 @@ down: ensure-docker-config
 
 # Full reset — destroy volumes and rebuild everything
 .PHONY: reset
-reset: ensure-db-init-executable ensure-docker-config
+reset: ensure-docker-config
 	$(DOCKER_COMPOSE) down -v
 	$(DOCKER_COMPOSE) up --wait --build engine read-model history nginx-proxy
 
@@ -111,7 +106,7 @@ endif
 generate-api-linux:
 	npl openapi --source-dir $(NPL_SOURCE_DIR) --rules $(NPL_RULES) --output-dir $(NPL_OPENAPI_OUT)
 	npx --yes openapi-typescript-codegen \
-		--input "$$(if [ -d $(NPL_OPENAPI_OUT)/openapi ]; then find $(NPL_OPENAPI_OUT)/openapi -name '*.yaml' -o -name '*.yml' | head -1; else find $(NPL_OPENAPI_OUT) -name '*.yaml' -o -name '*.yml' | head -1; fi)" \
+		--input "$$(if [ -d $(NPL_OPENAPI_OUT)/openapi ]; then find $(NPL_OPENAPI_OUT)/openapi -name '*.yaml' -o -name '*.yml'; else find $(NPL_OPENAPI_OUT) -name '*.yaml' -o -name '*.yml'; fi)" \
 		--output frontend/src/generated \
 		--client fetch --useOptions --useUnionTypes
 

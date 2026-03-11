@@ -114,7 +114,9 @@ local:
   `npl deploy` must point to the parent folder containing `migration.yml` (typically `npl/src/main`).
 
 - **Missing NPL CLI auth client in Keycloak**  
-  NPL CLI may require `client_id=paas` for password grant.
+  `npl deploy` requires a Keycloak client with `client_id=paas` for password grant.
+  If missing, you can get `Invalid client` / `Invalid client credentials`.
+  Ensure `keycloak-provisioning/terraform.tf` provisions this client (see [03-KEYCLOAK-PROVISIONING.md](./03-KEYCLOAK-PROVISIONING.md)).
 
 - **Using an outdated `migration.yml` structure**  
   Newer platform deployments expect migration schema v2 format with `$schema` and `migrate.sources`.
