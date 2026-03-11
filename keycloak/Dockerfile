@@ -19,6 +19,6 @@ FROM quay.io/keycloak/keycloak:24.0
 USER root
 COPY --from=curl-builder /output/usr/bin/curl /usr/bin/curl
 COPY --from=curl-builder /output/usr/lib64/ /usr/lib64/
-COPY theme/goldprovenance /opt/keycloak/themes/goldprovenance
+COPY theme/sampleapp /opt/keycloak/themes/sampleapp
 USER 1000
 

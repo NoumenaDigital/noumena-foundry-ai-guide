@@ -11,7 +11,7 @@ function WelcomePage() {
         Welcome
       </Typography>
       <Typography variant="body1" color="text.secondary">
-        Gold Provenance — ESG Gold Fund Management
+        Sample App
       </Typography>
     </Box>
   );

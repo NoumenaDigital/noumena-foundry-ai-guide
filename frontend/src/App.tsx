@@ -29,7 +29,7 @@ export function App() {
       >
         <CircularProgress color="primary" />
         <Typography variant="body2" color="text.secondary">
-          Loading Gold Provenance...
+          Loading Sample App...
         </Typography>
       </Box>
     );
@@ -86,7 +86,7 @@ export function App() {
           <CardContent sx={{ p: { xs: 3, md: 5 } }}>
             <Stack spacing={2} sx={{ mb: 3 }}>
               <Chip
-                label="ESG Gold Fund Platform"
+                label="Sample Platform"
                 sx={{
                   alignSelf: 'flex-start',
                   color: '#0bd2a2',
@@ -96,11 +96,11 @@ export function App() {
                 }}
               />
               <Typography variant="h3" sx={{ color: '#fff', fontWeight: 800, lineHeight: 1.1 }}>
-                Gold Provenance Management
+                Sample App
               </Typography>
               <Typography sx={{ color: 'rgba(255,255,255,0.74)', maxWidth: 760 }}>
-                Track the full lifecycle of every gold bar from registration to ESG review, approval,
-                external audit, client acknowledgement, and custody retirement in one auditable workflow.
+                Track the full lifecycle of every product from registration to review, approval,
+                audit, client acknowledgement, and retirement in one auditable workflow.
               </Typography>
             </Stack>
 
@@ -108,15 +108,15 @@ export function App() {
               {[
                 {
                   title: 'Role-based governance',
-                  description: 'Fund manager, compliance officer, custodian, external auditor, and client separation.',
+                  description: 'Manager, compliance officer, custodian, auditor, and client role separation.',
                 },
                 {
                   title: 'Immutable audit trail',
-                  description: 'Each state transition and governance action is recorded on the bar timeline.',
+                  description: 'Each state transition and governance action is recorded on the product timeline.',
                 },
                 {
                   title: 'Allocation readiness',
-                  description: 'Clear progression from draft to ESG reviewed, approved, and lifecycle retirement.',
+                  description: 'Clear progression from draft to reviewed, approved, and lifecycle retirement.',
                 },
               ].map((item) => (
                 <Grid item xs={12} md={4} key={item.title}>

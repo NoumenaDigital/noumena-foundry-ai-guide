@@ -75,7 +75,7 @@ The NPL engine calculates `@actions` based on:
 `@actions` is a **plain object** where each key is an action name. It is **not an array**. Always type it as `Record<string, unknown>`:
 
 ```typescript
-interface GoldBar {
+interface Product {
   '@id': string;
   '@state': string;
   '@actions'?: Record<string, unknown>; // ✅ object, NOT string[]

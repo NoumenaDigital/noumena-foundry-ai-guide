@@ -5,7 +5,7 @@ variable "default_password" {
 
 variable "app_name" {
   type    = string
-  default = "goldprovenance"
+  default = "sampleapp"
 }
 
 variable "frontend_port" {
@@ -15,7 +15,7 @@ variable "frontend_port" {
 
 variable "login_theme" {
   type    = string
-  default = "goldprovenance"
+  default = "sampleapp"
 }
 
 resource "keycloak_realm" "realm" {
@@ -103,8 +103,8 @@ resource "keycloak_role" "client_role" {
 
 resource "keycloak_user" "ops_user" {
   realm_id   = keycloak_realm.realm.id
-  username   = "ops@goldprovenance.local"
-  email      = "ops@goldprovenance.local"
+  username   = "ops@sampleapp.local"
+  email      = "ops@sampleapp.local"
   first_name = "Ops"
   last_name  = "User"
   enabled    = true
@@ -116,8 +116,8 @@ resource "keycloak_user" "ops_user" {
 
 resource "keycloak_user" "client_user" {
   realm_id   = keycloak_realm.realm.id
-  username   = "client@goldprovenance.local"
-  email      = "client@goldprovenance.local"
+  username   = "client@sampleapp.local"
+  email      = "client@sampleapp.local"
   first_name = "Client"
   last_name  = "User"
   enabled    = true

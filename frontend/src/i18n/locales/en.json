@@ -1,11 +1,11 @@
 {
   "app": {
-    "name": "Gold Provenance",
-    "tagline": "ESG Gold Fund Management"
+    "name": "Sample App",
+    "tagline": "Product Management"
   },
   "nav": {
-    "goldBars": "Gold Bars",
-    "registerBar": "Register Bar"
+    "products": "Products",
+    "registerProduct": "Register Product"
   },
   "common": {
     "loading": "Loading...",
@@ -21,9 +21,9 @@
     "darkMode": "Dark mode",
     "lightMode": "Light mode"
   },
-  "goldBar": {
-    "title": "Gold Bar",
-    "titlePlural": "Gold Bars",
+  "product": {
+    "title": "Product",
+    "titlePlural": "Products",
     "serialNumber": "Serial Number",
     "weightGrams": "Weight (g)",
     "purityFineness": "Purity (‰)",
@@ -52,10 +52,10 @@
       "updateLocation": "Update Location",
       "updateEsgDetails": "Update ESG Details",
       "decommission": "Decommission",
-      "register": "Register Gold Bar"
+      "register": "Register Product"
     },
     "placeholders": {
-      "serialNumber": "e.g. GB-001-2024",
+      "serialNumber": "e.g. PRD-001-2024",
       "weightGrams": "e.g. 1000",
       "purityFineness": "e.g. 999.9",
       "originCountry": "e.g. South Africa",

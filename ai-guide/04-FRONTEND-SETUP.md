@@ -112,8 +112,8 @@ Three variables are required at runtime:
 | Variable | Value |
 |---|---|
 | `VITE_KEYCLOAK_URL` | `http://keycloak.localtest.me:11000` |
-| `VITE_NC_KC_REALM` | your app slug (e.g. `goldprovenance`) |
-| `VITE_NC_KC_CLIENT_ID` | your app slug (e.g. `goldprovenance`) |
+| `VITE_NC_KC_REALM` | your app slug (e.g. `sampleapp`) |
+| `VITE_NC_KC_CLIENT_ID` | your app slug (e.g. `sampleapp`) |
 
 Use a single canonical hostname for Keycloak issuer in local development: `keycloak.localtest.me`. This keeps browser redirects, token issuer (`iss`), and backend issuer validation aligned.
 
@@ -124,8 +124,8 @@ Use a single canonical hostname for Keycloak issuer in local development: `keycl
 ```env
 VITE_ENGINE_URL=http://localhost:12001
 VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000
-VITE_NC_KC_REALM=goldprovenance
-VITE_NC_KC_CLIENT_ID=goldprovenance
+VITE_NC_KC_REALM=sampleapp
+VITE_NC_KC_CLIENT_ID=sampleapp
 ```
 
 Without this file the app throws "Missing Keycloak environment variables." on load.
@@ -249,17 +249,17 @@ src/generated/
 
 ```typescript
 // ❌ WRONG - manual path construction
-fetch('/npl/provenance/GoldBar/');
+fetch('/npl/provenance/Product/');
 
 // ✅ CORRECT - use generated service methods
 import { DefaultService } from './generated/services/DefaultService';
-DefaultService.getGoldBarList({ pageSize: 25, includeCount: true });
-DefaultService.getGoldBarById({ id: barId });
+DefaultService.getProductList({ pageSize: 25, includeCount: true });
+DefaultService.getProductById({ id: barId });
 ```
 
 ### Generated Client Pitfalls
 
-- Do not assume wrapper class names like `GoldBarApi` exist — generated code exposes `DefaultService` only.
+- Do not assume wrapper class names like `ProductApi` exist — generated code exposes `DefaultService` only.
 - Use generated field names exactly: `@id`, `@state`, `@actions`, flattened properties.
 - For protocol creation, always include `@parties` in the request payload. With party automation in `rules.yml`, use an empty object: `"@parties": {}`.
 
@@ -452,12 +452,12 @@ Without this guard, the first render fires an unauthenticated request and the en
 
 ```typescript
 // ❌ WRONG — missing @parties
-await api.createGoldBar({
+await api.createProduct({
   requestBody: { serialNumber: 'GB-001', weightGrams: 1000, ... }
 });
 
 // ✅ CORRECT — include @parties even with party automation
-await api.createGoldBar({
+await api.createProduct({
   requestBody: {
     '@parties': {},          // required — party automation fills this from JWT
     serialNumber: 'GB-001',
@@ -467,7 +467,7 @@ await api.createGoldBar({
 });
 ```
 
-Check the generated `GoldBar_Create` model (in `src/generated/models/`) — it should include `@parties` as a field. If you are constructing the payload manually, always include it.
+Check the generated `Product_Create` model (in `src/generated/models/`) — it should include `@parties` as a field. If you are constructing the payload manually, always include it.
 
 ---
 
@@ -484,10 +484,10 @@ IllegalArgumentException: `pageSize` must be at least 1 and at most 100.
 
 ```typescript
 // ❌ WRONG
-api.getGoldBarList({ pageSize: 200, includeCount: true });
+api.getProductList({ pageSize: 200, includeCount: true });
 
 // ✅ CORRECT
-api.getGoldBarList({ pageSize: 100, includeCount: true });
+api.getProductList({ pageSize: 100, includeCount: true });
 ```
 
 ---

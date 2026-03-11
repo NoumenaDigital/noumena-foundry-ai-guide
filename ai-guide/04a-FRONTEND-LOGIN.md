@@ -40,8 +40,8 @@ Do **not** rely on mixed hostnames (`localhost` vs another issuer host) in this 
 Root `.env`:
 
 ```env
-VITE_NC_KC_REALM=goldprovenance
-VITE_NC_KC_CLIENT_ID=goldprovenance
+VITE_NC_KC_REALM=sampleapp
+VITE_NC_KC_CLIENT_ID=sampleapp
 VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000
 VITE_ENGINE_URL=http://localhost:12001
 KC_INITIAL_USER_PASSWORD=welcome
@@ -51,8 +51,8 @@ DEV_MODE=false
 `frontend/.env` (required for local dev server — copy the VITE_ vars):
 
 ```env
-VITE_NC_KC_REALM=goldprovenance
-VITE_NC_KC_CLIENT_ID=goldprovenance
+VITE_NC_KC_REALM=sampleapp
+VITE_NC_KC_CLIENT_ID=sampleapp
 VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000
 VITE_ENGINE_URL=http://localhost:12001
 ```
@@ -115,8 +115,8 @@ interface AuthContextValue {
 }
 
 const KEYCLOAK_URL = (import.meta.env.VITE_KEYCLOAK_URL ?? "http://keycloak.localtest.me:11000").replace(/\/$/, "");
-const KEYCLOAK_REALM = import.meta.env.VITE_NC_KC_REALM ?? "goldprovenance";
-const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_NC_KC_CLIENT_ID ?? "goldprovenance";
+const KEYCLOAK_REALM = import.meta.env.VITE_NC_KC_REALM ?? "sampleapp";
+const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_NC_KC_CLIENT_ID ?? "sampleapp";
 const STORAGE_KEY = "gp-auth-session";
 
 interface TokenResponse {
@@ -285,7 +285,7 @@ import noumenaLogo from "../../../noumena-styleguide/noumenalogo.svg";
 
 export function LoginPage() {
   const { login } = useAuth();
-  const [username, setUsername] = useState("client@goldprovenance.local");
+  const [username, setUsername] = useState("client@sampleapp.local");
   const [password, setPassword] = useState("welcome");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -307,8 +307,8 @@ export function LoginPage() {
       <Paper elevation={8} sx={{ width: "100%", maxWidth: 460, borderRadius: 3, p: 4 }}>
         <Stack spacing={2.5}>
           <img src={noumenaLogo} alt="Noumena Digital" style={{ width: "100%", maxWidth: 260 }} />
-          <Typography variant="h5" fontWeight={700}>Gold Provenance</Typography>
-          <Typography color="text.secondary">Sign in to manage and browse ESG-certified gold bars.</Typography>
+          <Typography variant="h5" fontWeight={700}>Sample App</Typography>
+          <Typography color="text.secondary">Sign in to manage and browse products.</Typography>
           {error && <Alert severity="error">{error}</Alert>}
           <TextField label="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
           <TextField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
