@@ -6,12 +6,15 @@ NPL_DEPLOY_SOURCE_DIR=npl/src/main
 NPL_RULES=npl/src/main/rules.yml
 NPL_OPENAPI_OUT=npl/target
 
+# Use DOCKER_CONFIG=.docker-anon to avoid Docker Hub rate limits with anonymous pulls.
+# Set DOCKER_COMPOSE_CMD=docker compose to override if this causes issues on your system.
+DOCKER_COMPOSE_CMD ?= docker compose
 ifeq ($(OS),Windows_NT)
 DOCKER_SETUP = powershell -NoProfile -Command "if (!(Test-Path '.docker-anon')) { New-Item -ItemType Directory '.docker-anon' | Out-Null }"
-DOCKER_COMPOSE = powershell -NoProfile -Command "$$env:DOCKER_CONFIG='.docker-anon'; docker compose"
+DOCKER_COMPOSE = powershell -NoProfile -Command "$$env:DOCKER_CONFIG='.docker-anon'; $(DOCKER_COMPOSE_CMD)"
 else
 DOCKER_SETUP = mkdir -p .docker-anon
-DOCKER_COMPOSE = DOCKER_CONFIG=.docker-anon docker compose
+DOCKER_COMPOSE = DOCKER_CONFIG=.docker-anon $(DOCKER_COMPOSE_CMD)
 endif
 
 ## ============================================================================

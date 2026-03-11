@@ -2,7 +2,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 ARG VITE_ENGINE_URL=http://localhost:12001
-ARG VITE_KEYCLOAK_URL=http://host.docker.internal:11000
+ARG VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000
 ARG VITE_NC_KC_REALM=sampleapp
 ARG VITE_NC_KC_CLIENT_ID=sampleapp
 

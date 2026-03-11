@@ -20,6 +20,17 @@ For full NPL syntax and code-writing details, see `02-NPL-DEVELOPMENT.md`.
 | `Duration` | Time duration | Timeouts, SLAs, elapsed time |
 | `Period` | Calendar period | Subscription lengths, notice periods |
 
+### Date/Time Limitations
+
+> ⚠️ **Important:** `LocalDate` and `DateTime` have limited operations in NPL. The following are **not supported**:
+>
+> - Comparison operators (`>`, `<`, `>=`, `<=`) on `LocalDate`
+> - Date arithmetic methods (`plusMonths()`, `plusDays()`, `minusDays()`) on `LocalDate`
+> - `isAfter()` / `isBefore()` on `LocalDate`
+> - `periodOfMonths()`, `periodOfDays()` functions
+>
+> **Workaround:** Use `DateTime` for comparisons where possible, or store computed dates at creation time rather than calculating them at runtime. Avoid business logic that requires date arithmetic on `LocalDate`.
+
 ### Collection & Wrapper Types
 
 | Type | Description | Use when... |
