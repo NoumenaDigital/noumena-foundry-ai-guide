@@ -1641,6 +1641,26 @@ Collections of `Number`: `sum()`
 
 `toText()` — converts any value to its Text representation
 
+### Method Hallucination Guard (Critical)
+
+Never invent convenience methods. If a method is not listed above, it does not exist in NPL.
+
+Common invalid patterns and correct replacements:
+
+- INVALID: `map.getOrDefault("key", fallback)`
+  - VALID: `map.getOrNone("key").getOrElse(fallback)`
+- INVALID: `map.getOrFail("key")`
+  - VALID: `map.getOrNone("key").getOrFail()`
+- INVALID: `map.getOrElse("key", fallback)`
+  - VALID: `map.getOrNone("key").getOrElse(fallback)`
+- INVALID: `getORfail(...)`, `getORdefault(...)` (wrong casing/spelling and invalid API)
+  - VALID: Use exact method names from this guide only
+
+Rule of thumb:
+
+- `getOrFail()` and `getOrElse()` are `Optional` methods, not `Map` methods.
+- For maps, first call `getOrNone(key)`, then operate on the returned `Optional`.
+
 ---
 
 ## Quick Reference: Permission Patterns
