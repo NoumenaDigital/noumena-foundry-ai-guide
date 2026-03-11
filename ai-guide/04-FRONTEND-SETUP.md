@@ -19,6 +19,14 @@ Before starting this guide, you MUST have completed Phase 1 (Backend):
 
 See [02-NPL-DEVELOPMENT.md](./02-NPL-DEVELOPMENT.md) for NPL development.
 
+## Auth Canonical Reference
+
+For all authentication decisions in this repository, use:
+
+- [04b-AUTH-SOURCE-OF-TRUTH.md](./04b-AUTH-SOURCE-OF-TRUTH.md)
+
+If this file conflicts with older template snippets, follow `04b`.
+
 ## Prerequisites
 
 Before generating the frontend, ensure you have:
@@ -488,6 +496,7 @@ api.getGoldBarList({ pageSize: 100, includeCount: true });
 
 Run `make generate-api` before writing any page components, then proceed in order:
 
+0. [04b-AUTH-SOURCE-OF-TRUTH.md](./04b-AUTH-SOURCE-OF-TRUTH.md)
 1. [06-ACTION-BUTTONS.md](./06-ACTION-BUTTONS.md)
 2[07-DETAIL-PAGES.md](./07-DETAIL-PAGES.md)
 3[08-OVERVIEW-PAGES.md](./08-OVERVIEW-PAGES.md)

@@ -1,5 +1,18 @@
 # 04a - Frontend Login (Copy/Paste Implementation Guide)
 
+## Status in This Repository
+
+This file describes an explicit alternative login recipe.
+
+For the default and canonical approach in this repository, follow:
+
+- [04b-AUTH-SOURCE-OF-TRUTH.md](./04b-AUTH-SOURCE-OF-TRUTH.md)
+- [04-FRONTEND-SETUP.md](./04-FRONTEND-SETUP.md)
+
+Use this `04a` flow only when you intentionally choose the direct token-endpoint pattern for local troubleshooting.
+
+---
+
 This file is a **from-scratch recipe** for implementing login in a new generated app with the same local architecture:
 
 - Browser frontend: `http://localhost:5173`
