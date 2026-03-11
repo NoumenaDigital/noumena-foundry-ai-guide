@@ -53,7 +53,7 @@ infra-health: ensure-docker-config
 	@$(DOCKER_COMPOSE) ps
 	@echo ""
 	@echo "=== Keycloak ==="
-	@curl -sf http://host.docker.internal:11000/health/ready > /dev/null && echo "OK" || echo "UNHEALTHY"
+	@curl -sf http://keycloak.localtest.me:11000/health/ready > /dev/null && echo "OK" || echo "UNHEALTHY"
 	@echo ""
 	@echo "=== Engine ==="
 	@curl -sf http://localhost:12001/actuator/health | jq -r '.status' 2>/dev/null || echo "UNHEALTHY"

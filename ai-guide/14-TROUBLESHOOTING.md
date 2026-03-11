@@ -176,11 +176,11 @@ const response = await axios.get('/npl/cooper/DogProfile/');
 
 Use this profile consistently across `.env`, frontend, and docker-compose:
 
-- `VITE_KEYCLOAK_URL=http://host.docker.internal:11000`
+- `VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000`
 - `ENGINE_ALLOWED_ISSUERS` includes:
   - `http://keycloak:11000/realms/${VITE_NC_KC_REALM}`
   - `http://localhost:11000/realms/${VITE_NC_KC_REALM}`
-  - `http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}`
+  - `http://keycloak.localtest.me:11000/realms/${VITE_NC_KC_REALM}`
 - `READ_MODEL_ALLOWED_ISSUERS` includes the same set
 - Keycloak has no explicit `KC_HOSTNAME`/`KC_HOSTNAME_PORT` and uses `--hostname-strict=false`
 
@@ -341,12 +341,12 @@ java.io.FileNotFoundException: http://localhost:11000/realms/cooper-life-manager
 
 ```yaml
 # .env
-VITE_KEYCLOAK_URL=http://host.docker.internal:11000
+VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000
 
 # docker-compose.yml
 engine:
   environment:
-    ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
+    ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://keycloak.localtest.me:11000/realms/${VITE_NC_KC_REALM}
 ```
 
 **Why This Works:**
@@ -382,8 +382,8 @@ Failed to retrieve JWKS for http://localhost:11000/realms/<realm>
 **Cause:** Token issuer is `localhost`, but engine/read-model inside Docker cannot reach host `localhost` as Keycloak.
 
 **Fix (deterministic):**
-1. Set `VITE_KEYCLOAK_URL=http://host.docker.internal:11000`.
-2. Keep issuer allow-lists in engine/read-model including `host.docker.internal`, `localhost`, and `keycloak`.
+1. Set `VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000`.
+2. Keep issuer allow-lists in engine/read-model including `keycloak.localtest.me`, `localhost`, and `keycloak`.
 3. Recreate `keycloak`, `engine`, `read-model`, and `frontend`.
 
 ### 4.4.3 Issuer/Hostname Decision Tree
@@ -393,7 +393,7 @@ Failed to retrieve JWKS for http://localhost:11000/realms/<realm>
 2. **See `Cookie not found` after login submit?**  
    -> Host mismatch in Keycloak login flow -> remove explicit Keycloak hostname config.
 3. **See `503` on `/npl/...` + JWKS localhost in engine logs?**  
-   -> Issuer unreachable from container -> switch frontend issuer URL to `host.docker.internal` and align allowed issuers.
+   -> Issuer unreachable from container -> switch frontend issuer URL to `keycloak.localtest.me` and align allowed issuers.
 4. **Still failing?**  
    -> Verify token issuer claim (`iss`) matches one of allowed issuers and rerun token + protected endpoint checks.
 

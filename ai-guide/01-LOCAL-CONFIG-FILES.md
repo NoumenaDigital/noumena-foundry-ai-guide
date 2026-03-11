@@ -28,7 +28,7 @@ PLATFORM_VERSION=2025.2.8
 DEV_MODE=false
 
 VITE_ENGINE_URL=http://localhost:12001
-VITE_KEYCLOAK_URL=http://host.docker.internal:11000
+VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000
 VITE_NC_KC_REALM=<app-realm-slug>
 VITE_NC_KC_CLIENT_ID=<app-client-id>
 FRONTEND_PORT=5173
@@ -62,7 +62,7 @@ Use this template (replace placeholders for your use case):
 
 ```dotenv
 VITE_ENGINE_URL=http://localhost:12001
-VITE_KEYCLOAK_URL=http://host.docker.internal:11000
+VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000
 VITE_NC_KC_REALM=<app-realm-slug>
 VITE_NC_KC_CLIENT_ID=<app-client-id>
 ```
@@ -89,7 +89,7 @@ structure:
 
 local:
   managementUrl: http://localhost:12400
-  authUrl: http://host.docker.internal:11000/realms/<app-realm-slug>
+  authUrl: http://keycloak.localtest.me:11000/realms/<app-realm-slug>
   username: <deployment-username>
   password: <deployment-password>
 ```
@@ -108,7 +108,7 @@ local:
   Root `.env` is still required for Docker Compose.
 
 - **Using `localhost` as `authUrl` in `npl.yml`**  
-  Use `host.docker.internal` so engine can resolve JWKS correctly from container context.
+  Use `keycloak.localtest.me` so browser, CLI, and container issuer validation stay aligned.
 
 - **Wrong deploy source in Makefile**  
   `npl deploy` must point to the parent folder containing `migration.yml` (typically `npl/src/main`).

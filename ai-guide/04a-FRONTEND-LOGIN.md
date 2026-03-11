@@ -4,7 +4,7 @@ This file is a **from-scratch recipe** for implementing login in a new generated
 
 - Browser frontend: `http://localhost:5173`
 - Engine API via nginx: `http://localhost:12001`
-- Keycloak in Docker: `http://host.docker.internal:11000`
+- Keycloak in Docker: `http://keycloak.localtest.me:11000`
 
 The approach below is intentionally explicit so an agent can execute it without guessing.
 
@@ -14,7 +14,7 @@ The approach below is intentionally explicit so an agent can execute it without 
 
 Use **direct token endpoint login** (password + refresh token) for local dev stability.
 
-Do **not** rely on browser redirect login-actions for this stack, because mixed hostnames (`localhost` vs `host.docker.internal`) can cause intermittent Keycloak auth-cookie failures (`cookie_not_found`).
+Do **not** rely on mixed hostnames (`localhost` vs another issuer host) in this stack. Use one canonical Keycloak host (`keycloak.localtest.me`) to avoid intermittent auth-cookie failures (`cookie_not_found`).
 
 ---
 
@@ -29,7 +29,7 @@ Root `.env`:
 ```env
 VITE_NC_KC_REALM=goldprovenance
 VITE_NC_KC_CLIENT_ID=goldprovenance
-VITE_KEYCLOAK_URL=http://host.docker.internal:11000
+VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000
 VITE_ENGINE_URL=http://localhost:12001
 KC_INITIAL_USER_PASSWORD=welcome
 DEV_MODE=false
@@ -40,7 +40,7 @@ DEV_MODE=false
 ```env
 VITE_NC_KC_REALM=goldprovenance
 VITE_NC_KC_CLIENT_ID=goldprovenance
-VITE_KEYCLOAK_URL=http://host.docker.internal:11000
+VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000
 VITE_ENGINE_URL=http://localhost:12001
 ```
 
@@ -51,13 +51,13 @@ Without `frontend/.env`, the app throws "Missing Keycloak environment variables.
 Engine issuer allow-list:
 
 ```yaml
-ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM}
+ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://keycloak.localtest.me:11000/realms/${VITE_NC_KC_REALM}
 ```
 
 Keycloak host identity:
 
 ```yaml
-KC_HOSTNAME: host.docker.internal
+KC_HOSTNAME: keycloak.localtest.me
 KC_HOSTNAME_PORT: 11000
 ```
 
@@ -101,7 +101,7 @@ interface AuthContextValue {
   logout: () => Promise<void>;
 }
 
-const KEYCLOAK_URL = (import.meta.env.VITE_KEYCLOAK_URL ?? "http://host.docker.internal:11000").replace(/\/$/, "");
+const KEYCLOAK_URL = (import.meta.env.VITE_KEYCLOAK_URL ?? "http://keycloak.localtest.me:11000").replace(/\/$/, "");
 const KEYCLOAK_REALM = import.meta.env.VITE_NC_KC_REALM ?? "goldprovenance";
 const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_NC_KC_CLIENT_ID ?? "goldprovenance";
 const STORAGE_KEY = "gp-auth-session";

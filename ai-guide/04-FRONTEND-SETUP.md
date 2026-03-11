@@ -103,11 +103,11 @@ Three variables are required at runtime:
 
 | Variable | Value |
 |---|---|
-| `VITE_KEYCLOAK_URL` | `http://host.docker.internal:11000` |
+| `VITE_KEYCLOAK_URL` | `http://keycloak.localtest.me:11000` |
 | `VITE_NC_KC_REALM` | your app slug (e.g. `goldprovenance`) |
 | `VITE_NC_KC_CLIENT_ID` | your app slug (e.g. `goldprovenance`) |
 
-`host.docker.internal` is used because Keycloak embeds this hostname in JWT tokens as the issuer. It must be resolvable by both the browser (Windows/Mac Docker Desktop resolves it to 127.0.0.1) and backend containers (Docker Desktop provides this DNS entry). Do not change it to `localhost` — that breaks token validation inside Docker containers.
+Use a single canonical hostname for Keycloak issuer in local development: `keycloak.localtest.me`. This keeps browser redirects, token issuer (`iss`), and backend issuer validation aligned.
 
 ### Local dev (`npm run dev`)
 
@@ -115,7 +115,7 @@ Three variables are required at runtime:
 
 ```env
 VITE_ENGINE_URL=http://localhost:12001
-VITE_KEYCLOAK_URL=http://host.docker.internal:11000
+VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000
 VITE_NC_KC_REALM=goldprovenance
 VITE_NC_KC_CLIENT_ID=goldprovenance
 ```
@@ -303,7 +303,7 @@ useEffect(() => {
 Keycloak 19+ sends a `frame-ancestors 'self'` Content Security Policy header that blocks the hidden iframe used by `silentCheckSsoRedirectUri`:
 
 ```
-Framing 'http://host.docker.internal:11000/' violates Content Security Policy: "frame-ancestors 'self'"
+Framing 'http://keycloak.localtest.me:11000/' violates Content Security Policy: "frame-ancestors 'self'"
 ```
 
 Omit it entirely — keycloak-js falls back to a redirect-based check which works correctly.
@@ -416,7 +416,7 @@ Without this guard, the first render fires an unauthenticated request and the en
 ## Completion Checklist
 
 - [ ] `frontend/.env` exists with `VITE_*` vars (local dev), or env set in `docker-compose.yml` (Docker dev)
-- [ ] `VITE_KEYCLOAK_URL` uses `host.docker.internal`, not `localhost`
+- [ ] `VITE_KEYCLOAK_URL` uses `keycloak.localtest.me`, not `localhost`
 - [ ] `kc.init()` does not include `silentCheckSsoRedirectUri`
 - [ ] `OpenAPI.BASE` and `OpenAPI.TOKEN` set at module level in `ServiceProvider.tsx`
 - [ ] `_keycloak` updated in render body (not `useEffect`)

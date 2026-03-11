@@ -49,7 +49,7 @@ services:
       ENGINE_DB_HISTORY_SCHEMA: history
       ENGINE_DB_READ_MODEL_USER: read-model
       ENGINE_MANAGEMENT_HOST: 0.0.0.0
-      ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM},http://keycloak.localtest.me:11000/realms/${VITE_NC_KC_REALM}
+      ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://keycloak.localtest.me:11000/realms/${VITE_NC_KC_REALM}
       SWAGGER_ENGINE_URL: http://localhost:12000
       SWAGGER_SECURITY_AUTH_URL: http://localhost:11000/realms/${VITE_NC_KC_REALM}
       SWAGGER_SECURITY_CLIENT_ID: ${VITE_NC_KC_CLIENT_ID}
@@ -112,7 +112,6 @@ services:
       READ_MODEL_ALLOWED_ISSUERS: >
         http://keycloak:11000/realms/${VITE_NC_KC_REALM},
         http://localhost:11000/realms/${VITE_NC_KC_REALM},
-        http://host.docker.internal:11000/realms/${VITE_NC_KC_REALM},
         http://keycloak.localtest.me:11000/realms/${VITE_NC_KC_REALM}
     depends_on:
       engine-db:
