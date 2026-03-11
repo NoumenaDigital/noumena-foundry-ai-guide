@@ -116,6 +116,26 @@ local:
 - **Missing NPL CLI auth client in Keycloak**  
   NPL CLI may require `client_id=paas` for password grant.
 
+- **Using an outdated `migration.yml` structure**  
+  Newer platform deployments expect migration schema v2 format with `$schema` and `migrate.sources`.
+  If the structure is wrong, `npl deploy` can fail with errors like:
+  - `required property 'name' not found`
+  - `required property 'changes' not found`
+  - `required property 'systemUnderAudit' not found`
+
+  Use this working structure:
+
+  ```yaml
+  $schema: https://documentation.noumenadigital.com/schemas/migration-schema-v2.yml
+
+  changesets:
+    - name: 1.0.0
+      changes:
+        - migrate:
+            sources:
+              - npl-1.0
+  ```
+
 ---
 
 ## 5) Security note
