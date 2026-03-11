@@ -25,7 +25,7 @@ resource "keycloak_realm" "realm" {
   login_with_email_allowed = true
   registration_allowed     = false
   login_theme              = var.login_theme
-  password_policy          = "length(6)"
+  password_policy          = "length(8)"
 }
 
 resource "keycloak_default_roles" "default_roles" {

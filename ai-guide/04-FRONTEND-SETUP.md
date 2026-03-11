@@ -88,7 +88,7 @@ Install these dependencies:
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "react-hook-form": "^7.48.0",
-    "keycloak-js": "^23.0.0",
+    "keycloak-js": "^24.0.5",
     "react-i18next": "^13.5.0",
     "i18next": "^23.7.0"
   },
@@ -145,7 +145,13 @@ frontend:
 
 Values come from the root `.env` which Docker Compose reads automatically.
 
-> **Why port 12001?** The engine (port 12000) has strict CORS filtering. The nginx proxy (port 12001) adds CORS headers. Always use 12001 for frontend API calls.
+> **Why port 12001 (nginx proxy) instead of port 12000 (engine)?**
+> The frontend connects through the nginx proxy for three reasons:
+> 1. **CORS headers** — the engine has strict CORS filtering; nginx adds the required headers
+> 2. **SSE support** — nginx configures proper buffering for Server-Sent Events
+> 3. **Unified gateway** — routes both engine API and GraphQL (read-model) traffic through a single endpoint
+>
+> Always use port 12001 for frontend API calls. Do not remove the nginx-proxy service.
 
 ## Vite Configuration
 

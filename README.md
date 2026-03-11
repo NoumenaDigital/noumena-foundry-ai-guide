@@ -22,8 +22,8 @@ The goal is to **automatically generate a complete, production-ready application
 
 Before starting, ensure you have:
 - ✅ Docker & Docker Compose
-- ✅ Node.js (v18+)
-- ✅ NPL CLI (`npl version` works)
+- ✅ Node.js (v20+)
+- ✅ NPL CLI — `brew install NoumenaDigital/tools/npl` (verify: `npl version`)
 - ✅ Make (optional but recommended)
 
 ### 2. Create Your Business Logic
@@ -74,26 +74,36 @@ The development **MUST** happen in strict sequential phases, which is described 
 ## Repository Structure
 
 ```
-ai-guide-npl/
+noumena-foundry-ai-guide/
 ├── ai-guide/                          # Complete AI guide for NPL development
+│   ├── 00-STEP-BY-STEP.md             # Complete workflow (start here)
+│   ├── 01-LOCAL-CONFIG-FILES.md        # Local config files (.env, npl.yml)
 │   ├── 02-NPL-DEVELOPMENT.md          # NPL protocol development
 │   ├── 02a-PARTY-AUTOMATION.md        # Party automation rules
 │   ├── 02b-NPL-TESTING.md             # NPL unit testing
+│   ├── 02c-SPEC-TECHNICAL-REFERENCE.md # NPL type system reference
 │   ├── 03-KEYCLOAK-PROVISIONING.md    # Keycloak role generation
+│   ├── 03a-KEYCLOAK-THEMING.md        # Keycloak login theme
 │   ├── 04-FRONTEND-SETUP.md           # Frontend project setup
-│   ├── 04a-FRONTEND-LOGIN.md          # Frontend AUTHENTICATION setup
-│   ├── 05-SIDEBAR-NAVIGATION.md       # Sidebar navigation
-│   ├── 06-OVERVIEW-PAGES.md           # Overview pages
+│   ├── 04a-FRONTEND-LOGIN.md          # Frontend login (alternative)
+│   ├── 04b-AUTH-SOURCE-OF-TRUTH.md    # Canonical auth guidance
+│   ├── 06-ACTION-BUTTONS.md           # Action buttons
 │   ├── 07-DETAIL-PAGES.md             # Detail pages
-│   ├── 08-CREATION-FORMS.md           # Creation forms
-│   ├── 09-ACTION-BUTTONS.md           # Action buttons
+│   ├── 08-OVERVIEW-PAGES.md           # Overview pages
+│   ├── 09-CREATION-FORMS.md           # Creation forms
 │   ├── 10-CODE-TEMPLATES.md           # Code templates
-│   ├── 00-STEP-BY-STEP.md             # Complete workflow
 │   ├── 12-LOCALIZATION.md             # Internationalization
-│   ├── 13-KEYCLOAK-THEMING.md         # Keycloak theming
 │   ├── 14-TROUBLESHOOTING.md          # Troubleshooting guide
 │   ├── 15-SEED-SCRIPTS.md             # Seed scripts (optional)
-│   └── 16-CLOUD-DEPLOYMENT.md         # Cloud deployment (optional)
+│   ├── 16-RESTYLING.md                # Visual polish (optional)
+│   └── 17-CLOUD-DEPLOYMENT.md         # Cloud deployment (optional)
+├── frontend/                          # Frontend scaffolding (React/TypeScript)
+├── keycloak/                          # Keycloak Dockerfile and theme
+├── keycloak-provisioning/             # Terraform provisioning for Keycloak
+├── nginx/                             # Nginx proxy configuration
+├── db_init/                           # Database initialization scripts
+├── docker-compose.yml                 # Docker Compose for local development
+├── Makefile                           # Build and run targets
 ├── BusinessLogic.template.md          # Template for business logic definition
 ├── .cursor/
 │   └── agents/
@@ -199,7 +209,7 @@ These features are **REQUIRED** and must be implemented before the application i
 1. ✅ **CORS Configuration** - Via Nginx proxy (see [TROUBLESHOOTING.md](./ai-guide/14-TROUBLESHOOTING.md#52-cors-errors))
 2. ✅ **Engine Allowed Issuers** - Configure for both Docker network and localhost
 3. ✅ **Disable Engine Dev Mode** - Required for external Keycloak
-4. ✅ **Keycloak Theme Customization** - See [13-KEYCLOAK-THEMING.md](./ai-guide/13-KEYCLOAK-THEMING.md)
+4. ✅ **Keycloak Theme Customization** - See [03a-KEYCLOAK-THEMING.md](./ai-guide/03a-KEYCLOAK-THEMING.md)
 5. ✅ **Internationalization (i18n)** - See [12-LOCALIZATION.md](./ai-guide/12-LOCALIZATION.md)
 6. ✅ **Light/Dark Theme Toggle** - Material-UI theme switching
 

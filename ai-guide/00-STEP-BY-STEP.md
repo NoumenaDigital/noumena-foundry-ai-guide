@@ -4,6 +4,30 @@
 
 This guide provides a complete, step-by-step workflow for generating a frontend from NPL protocols. Follow these steps in order to create a complete, production-ready frontend application.
 
+## Prerequisites
+
+Before starting, ensure the following tools are installed:
+
+| Tool | Install | Verify |
+|------|---------|--------|
+| **Docker** with Compose v2 | [docker.com](https://docs.docker.com/get-docker/) | `docker compose version` |
+| **Node.js** v20+ and **npm** | [nodejs.org](https://nodejs.org/) or `brew install node` | `node -v` |
+| **NPL CLI** | `brew install NoumenaDigital/tools/npl` | `npl version` |
+| **make** | Pre-installed on macOS/Linux; on Windows use WSL | `make --version` |
+| **jq** (optional) | `brew install jq` | `jq --version` |
+| **curl** | Pre-installed on most systems | `curl --version` |
+
+### DNS setup for `keycloak.localtest.me`
+
+The local development stack uses `keycloak.localtest.me` as the canonical Keycloak hostname (see [01-LOCAL-CONFIG-FILES.md](./01-LOCAL-CONFIG-FILES.md) for why). This is a public domain that resolves to `127.0.0.1` — but some DNS providers don't resolve it.
+
+**Test:** `dig keycloak.localtest.me +short` — should return `127.0.0.1`
+
+**If it doesn't resolve**, add to `/etc/hosts`:
+```
+127.0.0.1 keycloak.localtest.me
+```
+
 > ⚠️ **CRITICAL: Local Config Setup Comes First**
 >
 > Before running **any** infra, deploy, or generation command, the agent must create and validate:
@@ -349,7 +373,7 @@ Package: scheduling
 5. Add "Create New" button
 6. Implement SSE for real-time updates
 
-**Reference:** [06-OVERVIEW-PAGES.md](./06-OVERVIEW-PAGES.md)
+**Reference:** [08-OVERVIEW-PAGES.md](./08-OVERVIEW-PAGES.md)
 
 **Important:** Import types from `src/generated/models/` - never define types manually!
 
@@ -378,7 +402,7 @@ Package: scheduling
 5. Implement API call (using generated client)
 6. Handle loading and errors
 
-**Reference:** [09-ACTION-BUTTONS.md](./09-ACTION-BUTTONS.md)
+**Reference:** [06-ACTION-BUTTONS.md](./06-ACTION-BUTTONS.md)
 
 **Action:** Export all buttons:
 
@@ -638,7 +662,7 @@ Use this checklist to ensure completeness **and correct sequencing**:
 
 **Action:** Customize Keycloak login pages to match your application branding.
 
-**Reference:** [13-KEYCLOAK-THEMING.md](./13-KEYCLOAK-THEMING.md)
+**Reference:** [03a-KEYCLOAK-THEMING.md](./03a-KEYCLOAK-THEMING.md)
 
 **Checklist:**
 - [ ] Create custom Keycloak theme directory structure

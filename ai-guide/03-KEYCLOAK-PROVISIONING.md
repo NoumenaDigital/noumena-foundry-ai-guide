@@ -532,7 +532,7 @@ FROM hashicorp/terraform:latest
 RUN apk add --no-cache curl
 
 WORKDIR /terraform
-COPY providers.tf terraform.tf generated-roles.tf /terraform/
+COPY providers.tf terraform.tf /terraform/
 COPY *.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/*.sh
 VOLUME /state
