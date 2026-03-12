@@ -138,7 +138,7 @@ Given this protocol:
 
 ```npl
 @api
-protocol[pOwner, pManager, pUser, pGuest, pAuditor, pSysAdmin, pService] Wine(
+protocol[owner, manager, user, guest, auditor, sysAdmin, service] Wine(
     var cellarId: Text,
     var producer: Text,
     var vintage: Number,
@@ -228,7 +228,7 @@ var location = StorageLocation("ZoneA", optionalOf("Rack1"), optionalOf<Text>())
 
 ## Pre-Test Instantiation Checklist
 
-Before running `mvn test`, validate:
+Before running `npl test`, validate:
 
 - Every protocol test constructor matches the current `protocol[...] Name(var ...)` signature exactly.
 - No protocol body variables are passed as constructor arguments.
@@ -268,5 +268,5 @@ Functions without a `returns` clause (including most `@test` functions) return U
 ## Running Tests
 
 ```bash
-cd npl && mvn test
+npl test --test-source-dir npl/src
 ```

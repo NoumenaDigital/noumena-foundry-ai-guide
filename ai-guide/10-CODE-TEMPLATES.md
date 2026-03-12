@@ -4,6 +4,14 @@
 
 This document provides complete, copy-paste ready code templates for all frontend components. Use these as starting points and customize based on your specific NPL protocols.
 
+## Auth Canonical Reference
+
+Before applying auth-related template snippets, read:
+
+- [04b-AUTH-SOURCE-OF-TRUTH.md](./04b-AUTH-SOURCE-OF-TRUTH.md)
+
+If an auth snippet in this file conflicts with `04b`, `04b` is authoritative.
+
 ## Table of Contents
 
 1. [Base CSS Styles](#base-css-styles)
@@ -723,7 +731,7 @@ export const RuntimeConfigurationProvider: React.FC<RuntimeConfigurationProvider
 
 > ⚠️ **CRITICAL:** This implementation prevents redirect loops by using:
 > - `initializingRef` to prevent double initialization from React StrictMode
-> - `silentCheckSsoRedirectUri` pointing to `/silent-check-sso.html`
+> - `check-sso` + `checkLoginIframe: false` (without silent iframe config)
 > - Login redirect handled directly in the init callback (not in a separate useEffect)
 
 ```typescript
@@ -819,12 +827,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     // CRITICAL: Use 'check-sso' instead of 'login-required' to avoid redirect loops
-    // silentCheckSsoRedirectUri requires the silent-check-sso.html file in public/
+    // Do NOT set silentCheckSsoRedirectUri in this repo's local setup.
     kc.init({
       onLoad: 'check-sso',
       checkLoginIframe: false,
       pkceMethod: 'S256',
-      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
     })
       .then((auth) => {
         console.log('[AuthProvider] Keycloak init complete, authenticated:', auth);
@@ -947,8 +954,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 1. **Use `initializingRef`** — Prevents React StrictMode from initializing Keycloak twice
 2. **Use `check-sso` mode** — Never use `login-required` as it causes redirect loops
 3. **Handle login in init callback** — Do NOT use a separate `useEffect` for login redirect
-4. **Requires `silent-check-sso.html`** — See "Keycloak Silent SSO File" section in 04-FRONTEND-SETUP.md
-5. **Use `silentCheckSsoRedirectUri`** — Points to the silent-check-sso.html file
+4. **Set `checkLoginIframe: false`** — avoids iframe-based SSO checks
+5. **Do not use `silentCheckSsoRedirectUri`** — follow `04b-AUTH-SOURCE-OF-TRUTH.md`
 
 ### User Provider
 
@@ -1542,5 +1549,5 @@ See the actual implementation in the codebase. Key features:
 ## Next Steps
 
 Once you have all templates, proceed to:
-- [11-STEP-BY-STEP.md](./11-STEP-BY-STEP.md) - Complete step-by-step generation workflow
+- [00-STEP-BY-STEP.md](./00-STEP-BY-STEP.md) - Complete step-by-step generation workflow
 

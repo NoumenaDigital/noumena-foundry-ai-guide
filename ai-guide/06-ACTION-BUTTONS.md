@@ -63,7 +63,7 @@ The `@actions` field determines button visibility:
 The NPL engine calculates `@actions` based on:
 1. **Current protocol state** - Which transitions are valid from this state
 2. **User's role/party membership** - Which parties the user belongs to
-3. **Permission definitions** - The `permission[pParty] action() | state` syntax
+3. **Permission definitions** - The `permission[party] action() | state` syntax
 
 **Never duplicate this logic in the frontend.** The backend already knows:
 - What state the protocol is in
@@ -72,22 +72,30 @@ The NPL engine calculates `@actions` based on:
 
 ### TypeScript Pattern
 
-In your generated TypeScript types, `@actions` becomes `actions` (OpenAPI naming convention):
+`@actions` is a **plain object** where each key is an action name. It is **not an array**. Always type it as `Record<string, unknown>`:
 
 ```typescript
-interface Issue {
+interface Product {
   '@id': string;
-  title: string;
-  state: string;
+  '@state': string;
+  '@actions'?: Record<string, unknown>; // ✅ object, NOT string[]
+  serialNumber?: string;
   // ... other fields
-  actions?: IssueActions;  // The @actions field
 }
+```
 
-interface IssueActions {
-  startTriage?: object;
-  updatePriority?: { newPriority: string };
-  // ... one property per @api permission
-}
+To check whether an action is available, use either direct property access or the `in` operator — **never `.includes()`**:
+
+```typescript
+// ✅ Direct property check (preferred in render)
+if (!bar['@actions']?.certify) return null;
+
+// ✅ Generic helper using 'in'
+const hasAction = (action: string) =>
+  bar?.['@actions'] != null && action in (bar['@actions'] as Record<string, unknown>);
+
+// ❌ WRONG — @actions is not an array, .includes() will throw at runtime
+const hasAction = (action: string) => bar?.['@actions']?.includes(action);
 ```
 
 ### Button Component Pattern
@@ -122,14 +130,14 @@ For each `@api` permission/obligation in the protocol:
 
 ```npl
 @api
-permission[pBank] configureDog() | created {
+permission[bank] configureDog() | created {
     require(dogName.length() > 0, "Dog name must be set");
     require(ownerEmail.contains("@"), "Valid owner email required");
     become configured;
 };
 
 @api
-permission[pBank] updateProgress(progress: Number) | configured {
+permission[bank] updateProgress(progress: Number) | configured {
     require(progress >= 0 && progress <= 100, "Progress must be between 0 and 100");
     overallProgress = progress;
 };
@@ -536,7 +544,7 @@ This button demonstrates validation from NPL `require()` statements:
 **NPL Protocol:**
 ```npl
 @api
-permission[pOwner | pCellarManager] updateDrinkingWindow(
+permission[owner | cellarManager] updateDrinkingWindow(
     windowStart: Number,
     windowEnd: Number
 ) | active {

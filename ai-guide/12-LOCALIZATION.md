@@ -419,6 +419,5 @@ The detected language is cached in localStorage for persistence across sessions.
 
 ## Next Steps
 
-- [05-SIDEBAR-NAVIGATION.md](./05-SIDEBAR-NAVIGATION.md) - Add LanguageSwitcher to sidebar
 - [13-KEYCLOAK-THEMING.md](./13-KEYCLOAK-THEMING.md) - Localize Keycloak login pages
 

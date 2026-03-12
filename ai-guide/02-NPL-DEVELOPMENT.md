@@ -66,21 +66,21 @@ npl/src/main/npl-1.0.0/
    };
    ```
 
-5. **Imports**: Use `use` statements to import from other packages. The import path is `<package>.<TypeName>` or `<package>.*` — the **filename is never part of the import path**:
+5. **Imports**: Use `use` statements to import from other packages. The import path is `<package>.<TypeName>` — the **filename is never part of the import path**. Each type must be imported individually:
 
    ```npl
    // File: npl-1.0.0/orders/Order.npl
    package orders
-   
+
    // Import specific types from the support package
    use support.Address;
    use support.OrderStatus;
-   
-   // Or import everything from the support package
-   use support.*;
-   
+
+   // ❌ Wildcard imports are NOT supported:
+   // use support.*;  // Causes: mismatched input '*' expecting IDENTIFIER
+
    @api
-   protocol[pBuyer, pSeller] Order(...) { ... };
+   protocol[buyer, seller] Order(...) { ... };
    ```
 
 ### Example: E-Commerce Application
@@ -132,7 +132,7 @@ struct Item { ... };
 enum Status { ... };
 
 @api
-protocol[pOwner] Order(...) { ... };
+protocol[owner] Order(...) { ... };
 ```
 
 ❌ **Using dots in package names or filenames in import paths** - Causes compile errors
@@ -148,7 +148,7 @@ use support.structs.*;           // ❌ Same mistake with wildcard
 // CORRECT: Import path is <package>.<TypeName> — the filename is irrelevant
 use support.Address;            // ✅ Imports Address from the 'support' package
 use support.OrderStatus;        // ✅ Imports OrderStatus from the 'support' package
-use support.*;                   // ✅ Imports everything from the 'support' package
+// NOTE: Wildcard imports (use support.*;) are NOT supported — import each type individually
 ```
 
 **Why this happens:** Multiple files (`structs.npl`, `enums.npl`, etc.) can live in the same directory and all declare `package support`. The filename is just for developer organization — NPL resolves imports by **package name + type name**, never by filename.
@@ -165,9 +165,10 @@ enum Status { ... };
 
 // orders/Order.npl
 package orders
-use support.*;
+use support.Item;
+use support.Status;
 @api
-protocol[pOwner] Order(...) { ... };
+protocol[owner] Order(...) { ... };
 ```
 
 ### Support File Contents
@@ -340,7 +341,7 @@ package yourpackage
  * @param paramName Description of parameter
  */
 @api
-protocol[pParty1, pParty2] ProtocolName(
+protocol[party1, party2] ProtocolName(
     var param1: Text,
     var param2: Number
 ) {
@@ -367,13 +368,13 @@ protocol[pParty1, pParty2] ProtocolName(
 Parties in protocol signatures define **roles** in the system:
 
 ```npl
-protocol[pAdmin, pTrainer, pGuest] DogTraining(...)
+protocol[admin, trainer, guest] DogTraining(...)
 ```
 
 **Naming Convention:**
-- Prefix with `p` (e.g., `pAdmin`, `pTrainer`)
+- Use camelCase party names (e.g., `relationshipManager`)
 - Use descriptive names based on business context
-- These become Keycloak roles (prefix removed: `pAdmin` → `admin`)
+- These map directly to Keycloak role names
 
 **Example from Context:**
 ```
@@ -382,7 +383,7 @@ protocol[pAdmin, pTrainer, pGuest] DogTraining(...)
 
 **NPL Protocol:**
 ```npl
-protocol[pAdmin, pTrainer, pGuest] DogTraining(...)
+protocol[admin, trainer, guest] DogTraining(...)
 ```
 
 **Generated Keycloak Roles:**
@@ -396,7 +397,7 @@ Mark protocols with `@api` to generate API endpoints:
 
 ```npl
 @api
-protocol[pBank, pClient] Account(...)
+protocol[bank, client] Account(...)
 ```
 
 **What gets generated:**
@@ -418,7 +419,7 @@ NPL protocols should include **inline comments** that provide context for fronte
 Use **inline comments** directly after variable declarations:
 
 ```npl
-protocol[pBank, pClient] DogTraining(
+protocol[bank, client] DogTraining(
     // @frontend: Display as main title in detail page header
     var dogName: Text,
     
@@ -520,7 +521,7 @@ var id: Text
 Variables with the same section name are grouped together:
 
 ```npl
-protocol[pBank] Example(
+protocol[bank] Example(
     // @frontend: Display in "Basic Information" section
     var name: Text,
     
@@ -672,16 +673,16 @@ When a permission has **parameters**, you **cannot** use comma-separated parties
 
 ```npl
 // ❌ WRONG - Syntax error with parameters and multiple parties
-permission[pOwner, pTrainer] updateProgress(score: Number) | active {
+permission[owner, trainer] updateProgress(score: Number) | active {
     // ...
 };
 
 // ✅ CORRECT - Separate permissions for each party
-permission[pOwner] updateProgressAsOwner(score: Number) | active {
+permission[owner] updateProgressAsOwner(score: Number) | active {
     this.score = score;
 };
 
-permission[pTrainer] updateProgressAsTrainer(score: Number) | active {
+permission[trainer] updateProgressAsTrainer(score: Number) | active {
     this.score = score;
 };
 ```
@@ -690,12 +691,33 @@ permission[pTrainer] updateProgressAsTrainer(score: Number) | active {
 
 ```npl
 // ✅ CORRECT - No parameters, multiple parties allowed
-permission[pOwner] archive() | active {
+permission[owner] archive() | active {
     become archived;
 };
 ```
 
-### 3. Permission Signature Order
+### 3. Permission Parameters Do Not Use `var`
+
+Protocol constructor parameters use `var` (they declare mutable state), but permission action parameters do **not** — they are input arguments:
+
+```npl
+// Protocol constructor — uses var (these become protocol state)
+protocol[admin] MyProtocol(var name: Text, var startDate: LocalDate) {
+    // ...
+
+    // ❌ WRONG — permission parameters must NOT use var
+    permission[admin] rename(var newName: Text) | active {
+        name = newName;
+    };
+
+    // ✅ CORRECT — no var keyword
+    permission[admin] rename(newName: Text) | active {
+        name = newName;
+    };
+};
+```
+
+### 4. Permission Signature Order
 
 The permission signature must follow this exact order:
 
@@ -885,12 +907,12 @@ struct Item {
     price: Number
 };
 
-protocol[pOwner] Order(var items: List<Item>) {
+protocol[owner] Order(var items: List<Item>) {
     // ...
 };
 
 // ❌ WRONG - Type definition inside protocol
-protocol[pOwner] Order() {
+protocol[owner] Order() {
     struct Item { ... };  // Syntax error
 };
 ```
@@ -968,10 +990,10 @@ comments = comments.with(
 When accessing protocol variables within permissions, the `this.` prefix is **not required** (unlike languages like Java/TypeScript).
 
 ```npl
-protocol[pOwner] Example(var title: Text) {
+protocol[owner] Example(var title: Text) {
     private var updatedAt: DateTime = now();
     
-    permission[pOwner] updateTitle(newTitle: Text) | active {
+    permission[owner] updateTitle(newTitle: Text) | active {
         // ❌ WRONG - Unnecessary this. prefix
         this.title = newTitle;
         this.updatedAt = now();
@@ -1194,12 +1216,12 @@ var status = "pending";
 
 ```npl
 // ❌ WRONG - storing Party in a variable
-var creator: Party = pOwner;
+var creator: Party = owner;
 var participants = listOf<Party>();
 
 // ✅ CORRECT - use Party only in signatures
-protocol[pOwner, pManager] Task(...) {
-    permission[pOwner] doSomething() | active { ... };
+protocol[owner, manager] Task(...) {
+    permission[owner] doSomething() | active { ... };
 };
 ```
 
@@ -1209,12 +1231,12 @@ In obligations, the `otherwise` clause **MUST ONLY** contain a state transition.
 
 ```npl
 // ✅ CORRECT - otherwise only has a state transition
-obligation[pBuyer] makePayment() before deadline | pending {
+obligation[buyer] makePayment() before deadline | pending {
     // payment logic
 } otherwise become expired;
 
 // ❌ WRONG - otherwise contains logic other than state transition
-obligation[pBuyer] makePayment() before deadline | pending {
+obligation[buyer] makePayment() before deadline | pending {
     // payment logic
 } otherwise {
     notifyParties();
@@ -1334,7 +1356,7 @@ struct BottleEvent {
 };
 
 @api
-protocol[pOwner, pManager] Bottle(
+protocol[owner, manager] Bottle(
     var cellarId: Text,
     var bottleSizeLiters: Number,
     var purchasePrice: Optional<Number>,
@@ -1422,7 +1444,7 @@ init {
 
 ```npl
 @api
-protocol[pOwner] Order(
+protocol[owner] Order(
     var customerName: Text,
     var items: List<LineItem>
 ) {
@@ -1526,7 +1548,7 @@ var label = if (amount > 1000) { "premium"; } else { "standard"; };
 ```npl
 // ❌ WRONG - /** */ comments inside constructor parameters cause parser errors
 @api
-protocol[pOwner] Order(
+protocol[owner] Order(
     /** The customer's full name */
     var customerName: Text,
     /** Total order amount */
@@ -1535,7 +1557,7 @@ protocol[pOwner] Order(
 
 // ✅ CORRECT - use // line comments
 @api
-protocol[pOwner] Order(
+protocol[owner] Order(
     // The customer's full name
     var customerName: Text,
     // Total order amount
@@ -1643,12 +1665,34 @@ Collections of `Number`: `sum()`
 
 ---
 
+### Method Hallucination Guard (Critical)
+
+Never invent convenience methods. If a method is not listed above, it does not exist in NPL.
+
+Common invalid patterns and correct replacements:
+
+- INVALID: `map.getOrDefault("key", fallback)`
+  - VALID: `map.getOrNone("key").getOrElse(fallback)`
+- INVALID: `map.getOrFail("key")`
+  - VALID: `map.getOrNone("key").getOrFail()`
+- INVALID: `map.getOrElse("key", fallback)`
+  - VALID: `map.getOrNone("key").getOrElse(fallback)`
+- INVALID: `getORfail(...)`, `getORdefault(...)` (wrong casing/spelling and invalid API)
+  - VALID: Use exact method names from this guide only
+
+Rule of thumb:
+
+- `getOrFail()` and `getOrElse()` are `Optional` methods, not `Map` methods.
+- For maps, first call `getOrNone(key)`, then operate on the returned `Optional`.
+
+---
+
 ## Quick Reference: Permission Patterns
 
 | Scenario | Syntax |
 |----------|--------|
-| Single party, no params | `permission[pOwner] action() \| state { ... };` |
-| Single party, with params | `permission[pOwner] action(param: Type) \| state { ... };` |
+| Single party, no params | `permission[owner] action() \| state { ... };` |
+| Single party, with params | `permission[owner] action(param: Type) \| state { ... };` |
 | Multi-party, no params | Create separate permissions OR use pipe in protocol signature |
 | Multi-party, with params | **Must** create separate permissions for each party |
 

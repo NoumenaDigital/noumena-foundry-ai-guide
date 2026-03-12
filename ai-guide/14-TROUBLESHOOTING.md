@@ -172,6 +172,37 @@ const response = await axios.get('/npl/cooper/DogProfile/');
 
 ## 4. Keycloak Issues
 
+### 4.0 Canonical Local Auth Profile
+
+Use this profile consistently across `.env`, frontend, and docker-compose:
+
+- `VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000`
+- `ENGINE_ALLOWED_ISSUERS` includes:
+  - `http://keycloak:11000/realms/${VITE_NC_KC_REALM}`
+  - `http://localhost:11000/realms/${VITE_NC_KC_REALM}`
+  - `http://keycloak.localtest.me:11000/realms/${VITE_NC_KC_REALM}`
+- `READ_MODEL_ALLOWED_ISSUERS` includes the same set
+- Keycloak has no explicit `KC_HOSTNAME`/`KC_HOSTNAME_PORT` and uses `--hostname-strict=false`
+
+### 4.0a `keycloak.localtest.me` Does Not Resolve
+
+**Error:** Browser shows "site can't be reached" when redirecting to `keycloak.localtest.me:11000`, or engine logs show `Connection refused` when fetching JWKS.
+
+**Cause:** `localtest.me` is a public domain that resolves to `127.0.0.1` via DNS, but some ISPs/corporate networks don't resolve it.
+
+**Diagnosis:**
+```bash
+dig keycloak.localtest.me +short          # Your DNS — should return 127.0.0.1
+dig keycloak.localtest.me @8.8.8.8 +short # Google DNS — should return 127.0.0.1
+```
+
+**Fix:** Add to `/etc/hosts`:
+```
+127.0.0.1 keycloak.localtest.me
+```
+
+**Why `keycloak.localtest.me` is needed:** The JWT token's `iss` (issuer) field must use a hostname reachable from both the browser and inside Docker containers. `localhost` fails inside containers (points to the container itself). `keycloak.localtest.me` resolves to `127.0.0.1` from the host, and the `extra_hosts` entries in docker-compose map it to the host inside containers.
+
 ### 4.1 Terraform Provisioning Fails with 409 Conflict
 
 **Error:** `Error: error sending POST request to /admin/realms: 409 Conflict` or `User exists with same email`
@@ -266,6 +297,20 @@ terraform apply -auto-approve
 3. Verify client ID matches between frontend and Keycloak
 4. Check redirect URIs are configured in Keycloak client settings
 
+### 4.2.1 Redirect URL Contains `.../undefined/protocol/openid-connect/...`
+
+**Signature:**
+```
+http://localhost:5173/undefined/protocol/openid-connect/auth?...
+```
+
+**Cause:** Frontend auth env values are missing at build/runtime (`VITE_KEYCLOAK_URL`, `VITE_NC_KC_REALM`, `VITE_NC_KC_CLIENT_ID`).
+
+**Fix:**
+1. Set all three vars in root `.env` (and `frontend/.env` if running Vite locally).
+2. Rebuild/restart frontend.
+3. Implement AuthProvider fail-fast guard: if config missing, show `configError` and do not call `login()`.
+
 ### 4.3 Engine Rejects JWT Tokens (401 Unauthorized)
 
 **Error:** API calls return 401 Unauthorized even with valid tokens
@@ -311,23 +356,65 @@ java.io.FileNotFoundException: http://localhost:11000/realms/cooper-life-manager
 
 **Cause:** The engine container is trying to fetch JWKS from `localhost:11000`, but from inside the Docker container, `localhost` refers to the container itself, not the host machine. The engine cannot reach Keycloak using `localhost`.
 
-**Solution:** Configure the engine to use the Docker service name `keycloak` instead of `localhost`:
+**Solution:** Align issuer URL and allowed issuer lists instead of introducing separate Keycloak URL knobs:
 
 ```yaml
+# .env
+VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000
+
 # docker-compose.yml
 engine:
   environment:
-    # Use Docker service name, NOT localhost
-    KEYCLOAK_URL: http://keycloak:11000/realms/${VITE_NC_KC_REALM}
-    # ... other environment variables ...
+    ENGINE_ALLOWED_ISSUERS: http://keycloak:11000/realms/${VITE_NC_KC_REALM},http://localhost:11000/realms/${VITE_NC_KC_REALM},http://keycloak.localtest.me:11000/realms/${VITE_NC_KC_REALM}
 ```
 
 **Why This Works:**
-- Docker containers on the same network can reach each other using service names
-- The engine uses `keycloak:11000` which resolves to the Keycloak container
-- JWKS endpoints are accessible at `http://keycloak:11000/realms/.../.well-known/openid-configuration`
+- Browser gets tokens from one canonical issuer URL
+- Engine/read-model explicitly trust that issuer plus internal/local aliases
+- JWKS lookup no longer depends on unresolved `localhost` inside containers
 
 **Important:** Do NOT add `--hostname`, `--hostname-admin`, or `KC_HOSTNAME` settings to Keycloak - these are not needed for local development and can cause redirect issues.
+
+### 4.4.1 Login Ends with `Cookie not found`
+
+**Signature:**
+```
+POST .../login-actions/authenticate?... 400 (Bad Request)
+We are sorry... Cookie not found. Please make sure cookies are enabled in your browser.
+```
+
+**Cause:** Keycloak URL host mismatch between issued login flow and browser host, often caused by explicit `KC_HOSTNAME`/`KC_HOSTNAME_PORT` forcing a different hostname.
+
+**Fix:**
+1. Remove explicit hostname settings (`KC_HOSTNAME`, `KC_HOSTNAME_PORT`, `--hostname`, `--hostname-admin`).
+2. Keep `--hostname-strict=false` and restart Keycloak.
+3. Keep frontend Keycloak URL and issuer policy aligned (section 4.0).
+
+### 4.4.2 `503` on `/npl/...` After Login + `Failed to retrieve JWKS for http://localhost:11000/...`
+
+**Signature:**
+```
+GET http://localhost:12001/npl/<package>/<Protocol>/?... 503 (Service Unavailable)
+Failed to retrieve JWKS for http://localhost:11000/realms/<realm>
+```
+
+**Cause:** Token issuer is `localhost`, but engine/read-model inside Docker cannot reach host `localhost` as Keycloak.
+
+**Fix (deterministic):**
+1. Set `VITE_KEYCLOAK_URL=http://keycloak.localtest.me:11000`.
+2. Keep issuer allow-lists in engine/read-model including `keycloak.localtest.me`, `localhost`, and `keycloak`.
+3. Recreate `keycloak`, `engine`, `read-model`, and `frontend`.
+
+### 4.4.3 Issuer/Hostname Decision Tree
+
+1. **See `undefined/protocol`?**  
+   -> Frontend env missing -> fix env + fail-fast AuthProvider guard.
+2. **See `Cookie not found` after login submit?**  
+   -> Host mismatch in Keycloak login flow -> remove explicit Keycloak hostname config.
+3. **See `503` on `/npl/...` + JWKS localhost in engine logs?**  
+   -> Issuer unreachable from container -> switch frontend issuer URL to `keycloak.localtest.me` and align allowed issuers.
+4. **Still failing?**  
+   -> Verify token issuer claim (`iss`) matches one of allowed issuers and rerun token + protected endpoint checks.
 
 ### 4.4.1 Keycloak Container Unhealthy (Healthcheck Fails)
 
@@ -527,7 +614,7 @@ java.io.FileNotFoundException: http://localhost:11000/realms/winecellar/.well-kn
 
 **Cause:** This is a Docker networking issue. The backend engine receives tokens with issuer `http://localhost:11000/realms/winecellar` (because the browser accessed Keycloak at localhost). When the engine tries to verify the token by fetching JWKS from the issuer URL, it fails because `localhost` inside the Docker container refers to the container itself, not the host machine.
 
-**Solution: Disable Engine Dev Mode**
+**Solution: Keep Engine Dev Mode Off and Use Canonical Issuer**
 
 The Noumena engine has an embedded OIDC server that runs in dev mode on port 11000, which can conflict with Keycloak. Ensure dev mode is disabled:
 
@@ -545,7 +632,7 @@ services:
 - This conflicts with external Keycloak which also uses port 11000
 - The engine may try to verify tokens against the wrong OIDC server
 
-**After Disabling:**
+**After applying issuer + dev-mode config:**
 ```bash
 docker compose restart engine
 ```
@@ -656,6 +743,16 @@ const kc = keycloakRef.current; // Always current
 ```
 
 See [10-CODE-TEMPLATES.md](./10-CODE-TEMPLATES.md) for the complete ServiceProvider implementation.
+
+## Acceptance Gates Before "Done"
+
+Do not mark setup complete until all checks pass:
+
+1. `docker compose ps` shows `engine`, `keycloak`, `rabbitmq` healthy and `nginx-proxy` running.
+2. `keycloak-provisioning` completed as one-shot (`Exited (0)`).
+3. Password grant returns non-empty `access_token`.
+4. Protected call to `/npl/<package>/<Protocol>/` with bearer token succeeds.
+5. Frontend login reaches protected route without 503, while public explorer remains public.
 
 ### 5.2 CORS Errors
 
@@ -871,7 +968,7 @@ When something goes wrong, follow this order:
    ```
 
 3. **For NPL/Engine issues:**
-   - Check NPL compilation: `cd npl && mvn package`
+   - Check NPL: `npl check --source-dir npl/src/main/npl-1.0`
    - Look for reserved keyword errors
    - Look for type redefinition errors
 

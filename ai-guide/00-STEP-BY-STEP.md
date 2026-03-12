@@ -1,12 +1,47 @@
-# 11 - Step-by-Step Generation Workflow
+# 00 - Step-by-Step Generation Workflow
 
 ## Overview
 
 This guide provides a complete, step-by-step workflow for generating a frontend from NPL protocols. Follow these steps in order to create a complete, production-ready frontend application.
 
+## Prerequisites
+
+Before starting, ensure the following tools are installed:
+
+| Tool | Install | Verify |
+|------|---------|--------|
+| **Docker** with Compose v2 | [docker.com](https://docs.docker.com/get-docker/) | `docker compose version` |
+| **Node.js** v20+ and **npm** | [nodejs.org](https://nodejs.org/) or `brew install node` | `node -v` |
+| **NPL CLI** | `brew install NoumenaDigital/tools/npl` | `npl version` |
+| **make** | Pre-installed on macOS/Linux; on Windows use WSL | `make --version` |
+| **jq** (optional) | `brew install jq` | `jq --version` |
+| **curl** | Pre-installed on most systems | `curl --version` |
+
+### DNS setup for `keycloak.localtest.me`
+
+The local development stack uses `keycloak.localtest.me` as the canonical Keycloak hostname (see [01-LOCAL-CONFIG-FILES.md](./01-LOCAL-CONFIG-FILES.md) for why). This is a public domain that resolves to `127.0.0.1` — but some DNS providers don't resolve it.
+
+**Test:** `dig keycloak.localtest.me +short` — should return `127.0.0.1`
+
+**If it doesn't resolve**, add to `/etc/hosts`:
+```
+127.0.0.1 keycloak.localtest.me
+```
+
+> ⚠️ **CRITICAL: Local Config Setup Comes First**
+>
+> Before running **any** infra, deploy, or generation command, the agent must create and validate:
+>
+> - root `.env`
+> - `frontend/.env`
+> - root `npl.yml`
+>
+> Use **[01-LOCAL-CONFIG-FILES.md](./01-LOCAL-CONFIG-FILES.md)** as the source of truth.  
+> If these files are missing or inconsistent, the workflow will fail later with avoidable errors (missing env vars, auth failures, deploy failures).
+
 > ⚠️ **CRITICAL: NPL First, Then TypeScript**
 > 
-> You **MUST** complete and compile the NPL protocols **BEFORE** working on TypeScript frontend code. The frontend depends on the OpenAPI-generated client which is only available after running `mvn package` on the NPL project.
+> You **MUST** complete and compile the NPL protocols **BEFORE** working on TypeScript frontend code. The frontend depends on the OpenAPI-generated client which is only available after running `npl openapi` on the NPL project.
 >
 > If you try to write frontend TypeScript before generating the API client, you will encounter missing type definitions and be forced to use forbidden mock data.
 
@@ -29,7 +64,8 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 │                              ↓                                              │
 │                   ┌────────────────────┐                                   │
 │                   │ ⛔ COMPILE NPL     │                                   │
-│                   │ mvn package        │                                   │
+│                   │ npl check          │                                   │
+│                   │ make generate-api  │                                   │
 │                   │ Verify: OpenAPI    │                                   │
 │                   └────────────────────┘                                   │
 │                              ↓                                              │
@@ -81,21 +117,20 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 ### Prerequisites (Before Starting)
 
 - [ ] Docker installed and running
-- [ ] Maven 3.6+ installed
+- [ ] NPL CLI installed (`npl version` works)
 - [ ] Node.js 18+ installed
 - [ ] Git repository initialized
+- [ ] Local config files created and validated (see `01-LOCAL-CONFIG-FILES.md`)
 
 ### Step 1.1: Setup Application Infrastructure
 
 **Action:** Set up the complete application infrastructure:
 
-1. Create `docker-compose.yml` with all services
-2. Create `Makefile` with build/deployment commands
-3. Create `.env` file with environment variables
-4. Configure Nginx proxy
-5. Set up database initialization
+1. Verfiy `docker-compose.yml` with all services
+2. Verify `Makefile` with build/deployment commands
+3. Verify `.env` file with environment variables both in root and frontend
 
-**Reference:** [01-PROJECT-SETUP.md](./01-PROJECT-SETUP.md)
+
 
 ### Step 1.2: Verify Infrastructure
 
@@ -104,7 +139,6 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 - ✅ Engine: http://localhost:12000/actuator/health
 - ✅ Keycloak: http://localhost:11000
 - ✅ Database: Port 5432
-- ✅ RabbitMQ: Port 5672
 - ✅ GraphQL: http://localhost:15001/graphql
 
 ### Step 1.3: Develop NPL Protocols
@@ -135,33 +169,26 @@ This guide provides a complete, step-by-step workflow for generating a frontend 
 **You MUST complete this checkpoint before proceeding to Phase 2.**
 
 ```bash
-# 1. Compile NPL protocols
-cd npl
-mvn package
+# 1. Validate, compile, and generate OpenAPI
+make generate-api
 
-# 2. VERIFY: Check for compilation errors
-# ✅ Build should complete with "BUILD SUCCESS"
-# ❌ If errors: Fix NPL syntax and recompile
-
-# 3. VERIFY: OpenAPI specification was generated
-ls target/generated-sources/openapi/
-# ✅ Should see: *-openapi.yml files
+# 2. VERIFY: Check for errors
+# ✅ Should complete with no errors and generate frontend/src/generated/*
 # ❌ If empty: Check @api annotations on protocols
 
-# 4. Start backend services
-cd ..
-make up
+# 3. Start backend services and deploy NPL package
+make npl-deploy
 
-# 5. VERIFY: Services are healthy
+# 4. VERIFY: Services are healthy
 curl -s http://localhost:12000/actuator/health | grep UP
 # ✅ Should return: "status":"UP"
 ```
 
 ### Checkpoint 1 Checklist
 
-- [ ] `mvn package` completes without errors
-- [ ] OpenAPI files exist in `npl/target/generated-sources/openapi/`
-- [ ] Backend services start successfully (`make up`)
+- [ ] `make generate-api` completes without errors
+- [ ] OpenAPI files exist in `npl/target/`
+- [ ] `make npl-deploy` completes successfully
 - [ ] Engine health check returns UP
 
 **❌ DO NOT proceed to Phase 2 until ALL items are checked.**
@@ -254,6 +281,11 @@ npm run build
    const [dogs, setDogs] = useState<Dog[]>([]);
    ```
 
+4. **Public start page must match the implemented use case:**
+   - Do not leave generic placeholder copy on the unauthenticated landing screen.
+   - Update headline, description, and call-to-action context so users immediately understand the domain workflow (for example: provenance, compliance, allocation lifecycle, and role model).
+   - Ensure the public page messaging is aligned with the actual protocols and business process implemented in this project.
+
 ### Step 3.1: Scan NPL Codebase (Analysis)
 
 **Action:** Analyze all NPL files to identify:
@@ -303,14 +335,10 @@ Package: scheduling
 
 ### Step 3.4: Generate Sidebar Navigation
 
-**Action:** Create navigation items based on packages:
+**Action:** Create navigation items :
 
-1. Create `src/components/shared/SidebarNavigation.tsx`
-2. Generate menu items for each package
-3. Add sub-menu items for each protocol
-4. Link to overview pages
+- Consdier the user journey of the application and built a userfriendly navigation flow
 
-**Reference:** [05-SIDEBAR-NAVIGATION.md](./05-SIDEBAR-NAVIGATION.md)
 
 ### Step 3.5: Add Routes
 
@@ -345,7 +373,7 @@ Package: scheduling
 5. Add "Create New" button
 6. Implement SSE for real-time updates
 
-**Reference:** [06-OVERVIEW-PAGES.md](./06-OVERVIEW-PAGES.md)
+**Reference:** [08-OVERVIEW-PAGES.md](./08-OVERVIEW-PAGES.md)
 
 **Important:** Import types from `src/generated/models/` - never define types manually!
 
@@ -374,7 +402,7 @@ Package: scheduling
 5. Implement API call (using generated client)
 6. Handle loading and errors
 
-**Reference:** [09-ACTION-BUTTONS.md](./09-ACTION-BUTTONS.md)
+**Reference:** [06-ACTION-BUTTONS.md](./06-ACTION-BUTTONS.md)
 
 **Action:** Export all buttons:
 
@@ -580,7 +608,7 @@ export { Action2Button } from './Action2Button';
 Use this checklist to ensure completeness **and correct sequencing**:
 
 ### ⛔ Checkpoint 1: Backend Complete (Before Frontend)
-- [ ] NPL protocols compile without errors (`mvn package`)
+- [ ] NPL protocols validate without errors (`npl check`)
 - [ ] OpenAPI specification exists in `npl/target/generated-sources/openapi/`
 - [ ] Backend services start successfully (`make up`)
 - [ ] Engine health check returns UP
@@ -634,7 +662,7 @@ Use this checklist to ensure completeness **and correct sequencing**:
 
 **Action:** Customize Keycloak login pages to match your application branding.
 
-**Reference:** [13-KEYCLOAK-THEMING.md](./13-KEYCLOAK-THEMING.md)
+**Reference:** [03a-KEYCLOAK-THEMING.md](./03a-KEYCLOAK-THEMING.md)
 
 **Checklist:**
 - [ ] Create custom Keycloak theme directory structure
@@ -644,6 +672,8 @@ Use this checklist to ensure completeness **and correct sequencing**:
 - [ ] Add custom CSS (`login.css`) with brand colors
 - [ ] Update `keycloak/Dockerfile` to copy theme files
 - [ ] Apply theme in Keycloak Admin Console or via configuration
+- [ ] Verify the selected theme is configured on the correct realm (not only on master/default realm)
+- [ ] Ensure theme naming/branding matches the realm use case and client-facing application context
 - [ ] Test login page displays correctly
 
 **Why Required:** The login page is the first impression users have of your application. A branded login experience is essential for professional applications.
@@ -836,7 +866,6 @@ docker compose logs -f frontend
 | **Engine** | NPL compilation errors | Fix NPL syntax errors and rebuild |
 | **Engine** | Cannot connect to Keycloak | Ensure Keycloak is healthy before engine starts |
 | **Frontend** | TypeScript errors | Run `npm run build` locally to see errors |
-| **RabbitMQ** | Queue not found | Check AMQP_ROOT_QUEUE_NAME in .env matches definitions.json |
 
 ### Final Step 4: Verify All Services Are Running
 

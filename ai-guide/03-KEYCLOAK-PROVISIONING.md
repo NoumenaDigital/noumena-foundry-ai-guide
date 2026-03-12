@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide explains how to **automatically generate Keycloak roles and users** based on the parties defined in your NPL protocols. The system analyzes all `@api` protocols to extract party names (like `pBank`, `pClient`, `pRelationshipManager`) and creates corresponding roles in Keycloak.
+This guide explains how to **automatically generate Keycloak roles and users** based on the parties defined in your NPL protocols. The system analyzes all `@api` protocols to extract party names (like `bank`, `client`, `relationshipManager`) and creates corresponding roles in Keycloak.
 
 > ⚠️ **MANDATORY: Keycloak Theme Customization**
 > 
@@ -11,9 +11,26 @@ This guide explains how to **automatically generate Keycloak roles and users** b
 > **Why mandatory:**
 > - The login page is the first impression users have of your application
 > - A branded login experience is essential for professional applications
-> - This is a required feature that must be completed (see [11-STEP-BY-STEP.md](./11-STEP-BY-STEP.md#phase-4-required-features-must-implement))
+> - This is a required feature that must be completed (see [00-STEP-BY-STEP.md](./00-STEP-BY-STEP.md#phase-4-required-features-must-implement))
 > 
 > **Before proceeding:** Ensure you have created your custom theme in `keycloak/theme/APPNAME/` and updated the `login_theme` variable in `terraform.tf`.
+
+> ⚠️ **CRITICAL: Provision `paas` client for NPL CLI deploy**
+>
+> `npl deploy` uses password-grant auth and implicitly expects a Keycloak client with `client_id=paas`.
+> If this client is missing, deploy commonly fails with:
+> - `Invalid client`
+> - `Invalid client credentials`
+>
+> This is **required for local deploy workflows** and must be present in `keycloak-provisioning/terraform.tf`.
+
+> ⚠️ **CRITICAL: `make npl-deploy` requires an app admin user**
+>
+> Ensure your app realm includes a user with username/email:
+> - `admin@<app-realm-slug>.local`
+>
+> This user must be assigned the `admin` realm role so `npl deploy` (invoked by `make npl-deploy`) can authenticate and execute protocol deployment successfully.
+> If this user is missing, deploy may fail even if the `paas` client is correctly configured.
 
 ## Concept
 
@@ -22,17 +39,17 @@ This guide explains how to **automatically generate Keycloak roles and users** b
 In NPL, protocols declare parties in their signature:
 
 ```npl
-protocol[pBank, pClient, pRelationshipManager] DogTraining(...) {
+protocol[bank, client, relationshipManager] DogTraining(...) {
     // Protocol body
 }
 ```
 
-These parties (`pBank`, `pClient`, `pRelationshipManager`) represent **roles** in the system.
+These parties (`bank`, `client`, `relationshipManager`) represent **roles** in the system.
 
 ### Role Generation Strategy
 
 1. **Extract all unique parties** from all `@api` protocols
-2. **Create Keycloak roles** for each party (removing the `p` prefix)
+2. **Create Keycloak roles** for each party (party names map to role names)
 3. **Create demo users** for each role
 4. **Assign roles** to users
 
@@ -47,26 +64,26 @@ Scan all NPL files for protocol declarations:
 grep -r "protocol\[" npl/src/main/npl-1.0/
 
 # Example output:
-# protocol[pBank, pClient] DogTraining(...)
-# protocol[pBank, pRelationshipManager] Trainer(...)
-# protocol[pClient] TrainingSession(...)
+# protocol[bank, client] DogTraining(...)
+# protocol[bank, relationshipManager] Trainer(...)
+# protocol[client] TrainingSession(...)
 ```
 
 **Parties found:**
-- `pBank`
-- `pClient`
-- `pRelationshipManager`
+- `bank`
+- `client`
+- `relationshipManager`
 
 **Roles to create:**
-- `bank` (from `pBank`)
-- `client` (from `pClient`)
-- `relationshipManager` (from `pRelationshipManager`)
+- `bank` (from `bank`)
+- `client` (from `client`)
+- `relationshipManager` (from `relationshipManager`)
 
 ### Party Naming Convention
 
-- **Prefix `p`** is removed: `pBank` → `bank`
-- **CamelCase** is preserved: `pRelationshipManager` → `relationshipManager`
-- **Service parties** (like `pFMP`, `pExConvert`) can be treated as service accounts
+- Party identifiers use camelCase (e.g., `bank`, `relationshipManager`)
+- These map directly to Keycloak role names
+- **Service parties** (like `fmp`, `exConvert`) can be treated as service accounts
 
 ## Step 2: Generate Terraform Configuration
 
@@ -189,16 +206,43 @@ resource "keycloak_openid_client" "client" {
   ]
   web_origins                  = ["*"]
 }
+
+# CRITICAL: NPL CLI deploy client (required by npl deploy password-grant flow)
+resource "keycloak_openid_client" "paas_client" {
+  realm_id                     = keycloak_realm.realm.id
+  client_id                    = "paas"
+  name                         = "NPL CLI Client"
+  enabled                      = true
+  access_type                  = "PUBLIC"
+  standard_flow_enabled        = true
+  direct_access_grants_enabled = true
+  valid_redirect_uris          = [
+    "http://localhost:${var.frontend_port}/*",
+    "http://localhost:${var.frontend_port}",
+    "*"
+  ]
+  web_origins                  = ["*"]
+}
 ```
 
 ### Protocol Mappers (CRITICAL for rules.yml)
 
 **IMPORTANT:** Protocol mappers expose claims in the JWT token that can be used in `rules.yml`. Without these mappers, claims like `roles` won't be available as flat claims in the token.
 
+> ⚠️ **Protocol mappers are per-client.** Each Keycloak client has its own set of mappers. If you add
+> a `roles` mapper to the app client but not to the `paas` client, tokens obtained via `paas`
+> (e.g. from seed scripts or `npl deploy`) will NOT have the flat `roles` claim — causing
+> `'REQUIRE' rule criteria not met` errors. **Add the same mappers to every client that needs
+> party automation claims.**
+
 ```hcl
 # ============================================================================
 # Protocol Mappers - Expose claims in JWT token
 # ============================================================================
+# IMPORTANT: These mappers must be added to EVERY client that obtains tokens
+# used for protocol creation (app client, paas client, any seed/test client).
+
+# --- App client mappers ---
 
 # Realm roles mapper - exposes realm_access.roles as flat "roles" claim
 # CRITICAL: This is required for rules.yml to access roles via the "roles" claim
@@ -218,6 +262,32 @@ resource "keycloak_openid_user_realm_role_protocol_mapper" "realm_roles" {
 resource "keycloak_openid_user_attribute_protocol_mapper" "email" {
   realm_id  = keycloak_realm.realm.id
   client_id = keycloak_openid_client.client.id
+  name      = "email-mapper"
+
+  user_attribute      = "email"
+  claim_name          = "email"
+  add_to_id_token     = true
+  add_to_access_token = true
+  add_to_userinfo     = true
+}
+
+# --- paas client mappers (same claims, different client) ---
+
+resource "keycloak_openid_user_realm_role_protocol_mapper" "paas_realm_roles" {
+  realm_id  = keycloak_realm.realm.id
+  client_id = keycloak_openid_client.paas_client.id
+  name      = "realm-roles-mapper"
+
+  claim_name          = "roles"
+  multivalued         = true
+  add_to_id_token     = true
+  add_to_access_token = true
+  add_to_userinfo     = true
+}
+
+resource "keycloak_openid_user_attribute_protocol_mapper" "paas_email" {
+  realm_id  = keycloak_realm.realm.id
+  client_id = keycloak_openid_client.paas_client.id
   name      = "email-mapper"
 
   user_attribute      = "email"
@@ -248,7 +318,7 @@ resource "keycloak_openid_user_attribute_protocol_mapper" "email" {
 For each party found in NPL protocols, generate:
 
 ```hcl
-# Role for 'bank' (from pBank)
+# Role for 'bank' (from bank)
 resource "keycloak_role" "bank_role" {
   realm_id    = keycloak_realm.realm.id
   name        = "bank"
@@ -311,11 +381,7 @@ function extractParties(nplDir) {
       const partyList = match[1];
       const partyNames = partyList.split(',').map(p => p.trim());
       partyNames.forEach(party => {
-        // Remove 'p' prefix if present
-        const roleName = party.startsWith('p') ? party.substring(1) : party;
-        // Convert to camelCase for role name
-        const normalizedRole = roleName.charAt(0).toLowerCase() + roleName.slice(1);
-        parties.add(normalizedRole);
+        parties.add(party);
       });
     }
   });
@@ -463,10 +529,10 @@ resource "keycloak_role" "guest_role" {
 
 ## Step 6: Service Account Roles
 
-For service parties (like `pFMP`, `pExConvert`), create service accounts:
+For service parties (like `fmp`, `exConvert`), create service accounts:
 
 ```hcl
-# Service role (from pFMP)
+# Service role (from fmp)
 resource "keycloak_role" "fmp_role" {
   realm_id    = keycloak_realm.realm.id
   name        = "fmp"
@@ -510,7 +576,7 @@ FROM hashicorp/terraform:latest
 RUN apk add --no-cache curl
 
 WORKDIR /terraform
-COPY providers.tf terraform.tf generated-roles.tf /terraform/
+COPY providers.tf terraform.tf /terraform/
 COPY *.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/*.sh
 VOLUME /state
@@ -668,8 +734,8 @@ provider "keycloak" {
 
 **NPL Protocols:**
 ```npl
-protocol[pAdmin, pTrainer, pGuest] DogTraining(...)
-protocol[pAdmin, pTrainer] TrainingSession(...)
+protocol[admin, trainer, guest] DogTraining(...)
+protocol[admin, trainer] TrainingSession(...)
 ```
 
 **Generated Roles:**
@@ -681,9 +747,9 @@ protocol[pAdmin, pTrainer] TrainingSession(...)
 
 **NPL Protocols:**
 ```npl
-protocol[pBank, pClient] Account(...)
-protocol[pBank, pRelationshipManager] Product(...)
-protocol[pBank, pClient, pRelationshipManager] Offer(...)
+protocol[bank, client] Account(...)
+protocol[bank, relationshipManager] Product(...)
+protocol[bank, client, relationshipManager] Offer(...)
 ```
 
 **Generated Roles:**
@@ -749,6 +815,21 @@ fi
 ```
 
 > **Note:** The Foundry build system automatically patches `local.sh` with this block during post-phase infrastructure enforcement. If you see the error in a manually-created project, add the block above.
+
+### `'REQUIRE' rule criteria not met` when creating protocols via seed script or CLI
+
+**Symptom:** Seed scripts or API calls using the `paas` client fail with:
+```
+Failed to extract access claim: roles
+```
+or:
+```
+'REQUIRE' rule criteria not met for 'member'
+```
+
+**Cause:** The `paas` client is missing protocol mappers. Each Keycloak client has its **own** set of mappers — adding a `roles` mapper to the app client does NOT make it available on `paas`. Without the mapper, the JWT token has `realm_access.roles` (nested) instead of `roles` (flat), so `rules.yml` can't find the claim.
+
+**Fix:** Add the same protocol mappers (realm roles, email) to both the app client and the `paas` client in `terraform.tf`. See the "Protocol Mappers" section above.
 
 ### Roles not appearing
 - Check Terraform apply logs

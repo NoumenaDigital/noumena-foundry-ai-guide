@@ -48,13 +48,14 @@ VITE_NC_KC_REALM=your-realm-name
 
 ## Deployment Steps
 
-### Step 1: Build NPL Protocols
+### Step 1: Validate and Generate OpenAPI
 
 ```bash
-cd npl && mvn clean install
+npl check --source-dir npl/src/main/npl-1.0
+npl openapi --source-dir npl/src/main/npl-1.0 --rules npl/src/main/rules.yml --output-dir npl/target
 ```
 
-This compiles all NPL protocols and generates the OpenAPI specification.
+This validates all NPL protocols and generates the OpenAPI specification.
 
 ### Step 2: Clear Existing Deployment (Optional)
 
@@ -98,7 +99,8 @@ The Makefile should include a `clear-deploy` target that automates all these ste
 .PHONY: clear-deploy
 clear-deploy:
 	@if [ -z "$(NC_APP)" ] ; then echo "App $(NC_APP) not found"; exit 1; fi
-	cd npl && mvn clean install; cd -
+	npl check --source-dir npl/src/main/npl-1.0
+	npl openapi --source-dir npl/src/main/npl-1.0 --rules npl/src/main/rules.yml --output-dir npl/target
 	-npl cloud clear npl --tenant $(NC_ORG) --app $(NC_APP) || echo "App $(NC_APP) doesn't exist yet, continuing with deployment..."
 	npl cloud deploy npl --tenant $(NC_ORG) --app $(NC_APP) --migration npl/src/main/migration.yml
 	cd frontend && npm run build; cd -
@@ -132,7 +134,7 @@ When implementing this phase:
 1. **Verify Makefile exists** with `clear-deploy` target
 2. **Check environment variables** are set for cloud deployment
 3. **Run the deployment commands** in sequence:
-   - Build NPL: `cd npl && mvn clean install`
+   - Validate & generate OpenAPI: `npl check ... && npl openapi ...`
    - Clear existing deployment (optional): `npl cloud clear npl --tenant ... --app ...`
    - Deploy NPL: `npl cloud deploy npl --tenant ... --app ... --migration ...`
    - Build frontend: `cd frontend && npm run build`
