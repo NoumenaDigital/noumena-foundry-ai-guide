@@ -37,6 +37,19 @@ Before generating the frontend, ensure you have:
 4. **TypeScript** knowledge
 5. **React** knowledge
 
+## ⚠️ Baseline-First Rule (Use Existing Frontend)
+
+In this repository, a frontend skeleton is typically already present. Treat it as the baseline and build on top of it.
+
+- Reuse existing files in `frontend/` (`App.tsx`, `Router.tsx`, `ServiceProvider.tsx`, `AuthProvider.tsx`, theme, i18n, layout).
+- Do **not** re-initialize/overwrite the frontend unless the folder is missing.
+- Preserve working auth/service wiring and only extend with protocol-driven pages/actions.
+- Preserve the existing app shell structure unless explicitly asked to redesign it:
+  - navigation/menu structure
+  - footer structure
+  - content container width and spacing behavior
+  - light/dark mode behavior (including toggle and persistence)
+
 ## Frontend Project Structure
 
 If there is no fronend present, create a new frontend project with this structure:
@@ -73,6 +86,16 @@ frontend/
         └── index.ts
 ```
 
+## UI Guidance from `noumena-styleguide` (if present)
+
+If `noumena-styleguide` exists in the repository, it is the primary visual/design reference for frontend implementation.
+
+- Treat `noumena-styleguide/index.html` as the canonical sample of major components and UI behavior.
+- Follow it strictly for spacing, typography hierarchy, component composition, and interaction patterns.
+- The styleguide is library-agnostic; adapt its patterns to the library used by this project (Material-UI), not by copying raw HTML/CSS verbatim.
+- Reuse existing project tokens/themes and MUI components to match the styleguide intent.
+- If there is a conflict between generated functional requirements and styleguide visuals, preserve functional correctness first, then align visuals as closely as possible.
+
 ## Package Dependencies
 
 Install these dependencies:
@@ -88,7 +111,7 @@ Install these dependencies:
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "react-hook-form": "^7.48.0",
-    "keycloak-js": "^24.0.5",
+    "keycloak-js": "^23.0.0",
     "react-i18next": "^13.5.0",
     "i18next": "^23.7.0"
   },
@@ -145,13 +168,7 @@ frontend:
 
 Values come from the root `.env` which Docker Compose reads automatically.
 
-> **Why port 12001 (nginx proxy) instead of port 12000 (engine)?**
-> The frontend connects through the nginx proxy for three reasons:
-> 1. **CORS headers** — the engine has strict CORS filtering; nginx adds the required headers
-> 2. **SSE support** — nginx configures proper buffering for Server-Sent Events
-> 3. **Unified gateway** — routes both engine API and GraphQL (read-model) traffic through a single endpoint
->
-> Always use port 12001 for frontend API calls. Do not remove the nginx-proxy service.
+> **Why port 12001?** The engine (port 12000) has strict CORS filtering. The nginx proxy (port 12001) adds CORS headers. Always use 12001 for frontend API calls.
 
 ## Vite Configuration
 

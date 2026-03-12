@@ -2,13 +2,22 @@
 
 ## Overview
 
-> ⚠️ **MANDATORY:** Keycloak login theme customization is **REQUIRED** for all applications. A basic branded theme must always be created. Additional visual polish can be applied during the optional restyling phase (see [16-RESTYLING.md](./16-RESTYLING.md)).
+> ⚠️ **MANDATORY when restyling:** Keycloak login theme customization is **REQUIRED** when the restyling phase is executed. You MUST create and configure a custom Keycloak login theme to match the application branding.
 
 **Why important:**
 - The login page is the first impression users have of your application
 - A branded login experience is essential for professional applications
 
-This guide covers how to create and apply a custom Keycloak theme for the login pages to match your application's branding.
+This guide covers how to verify, apply, and (if needed) customize the Keycloak login theme.
+
+> ✅ **Current repository baseline:** Theme scaffolding is already present in this project (`keycloak/theme/...`) and usually does **not** need immediate changes for initial setup.
+>
+> In most first runs, you only need to verify:
+> 1. The theme folder exists.
+> 2. `keycloak/Dockerfile` copies that theme into `/opt/keycloak/themes/...`.
+> 3. `keycloak-provisioning/terraform.tf` sets `login_theme` to the same theme name.
+>
+> Only proceed with deeper template/CSS edits when you actually need branding changes.
 
 > ⚠️ **IMPORTANT:** The theme folder name must match the application slug (the `app_name` variable used in Terraform). For example, if your app is called `feedbacksystem`, create the theme in `keycloak/theme/feedbacksystem/`. The build system will automatically detect the theme and update the Terraform `login_theme` variable accordingly. **DO NOT manually edit `keycloak-provisioning/variables.tf`** — the build system handles this.
 
@@ -19,6 +28,13 @@ This guide covers how to create and apply a custom Keycloak theme for the login 
 Keycloak themes are located in `keycloak/theme/`:
 
 ```
+
+### Initial Setup vs Customization
+
+Use this decision rule before editing theme files:
+
+- **Initial setup (most cases):** keep existing theme files as-is and only confirm wiring (folder name, Docker COPY, Terraform `login_theme`).
+- **Customization needed:** edit `theme.properties`, `.ftl`, and `login.css` only when branding/content differs from the current baseline.
 keycloak/theme/
 └── APPNAME/                # Theme name - must match the application slug
     ├── login/
@@ -38,7 +54,7 @@ keycloak/theme/
 
 ### theme.properties
 
-Create `keycloak/theme/APPNAME/login/theme.properties`:
+If missing, create `keycloak/theme/APPNAME/login/theme.properties`:
 
 ```properties
 parent=keycloak
@@ -55,7 +71,7 @@ styles=css/login.css
 
 ### template.ftl (Base Layout)
 
-Create `keycloak/theme/APPNAME/login/template.ftl`:
+If missing, create `keycloak/theme/APPNAME/login/template.ftl`:
 
 ```freemarker
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false showAnotherWayIfPresent=true>
@@ -109,7 +125,7 @@ Create `keycloak/theme/APPNAME/login/template.ftl`:
 
 ### login.ftl (Login Form)
 
-Create `keycloak/theme/APPNAME/login/login.ftl`:
+If missing, create `keycloak/theme/APPNAME/login/login.ftl`:
 
 ```freemarker
 <#import "template.ftl" as layout>
@@ -160,7 +176,7 @@ Create `keycloak/theme/APPNAME/login/login.ftl`:
 
 ### login.css
 
-Create `keycloak/theme/APPNAME/login/resources/css/login.css`:
+If missing, create `keycloak/theme/APPNAME/login/resources/css/login.css`:
 
 ```css
 /* Keycloak Login Theme - Customize colors and fonts to match your brand */
