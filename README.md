@@ -25,6 +25,8 @@ Before starting, ensure you have:
 - ✅ Node.js (v20+)
 - ✅ NPL CLI — `brew install NoumenaDigital/tools/npl` (verify: `npl version`)
 - ✅ Make (optional but recommended)
+- ✅ Checkout git submodules before starting work (required for agents):
+  - `git submodule update --init --recursive --remote`
 
 ### 2. Create Your Business Logic
 
