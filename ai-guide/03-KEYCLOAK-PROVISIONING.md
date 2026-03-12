@@ -24,6 +24,14 @@ This guide explains how to **automatically generate Keycloak roles and users** b
 >
 > This is **required for local deploy workflows** and must be present in `keycloak-provisioning/terraform.tf`.
 
+> ⚠️ **CRITICAL: `make npl-deploy` requires an app admin user**
+>
+> Ensure your app realm includes a user with username/email:
+> - `admin@<app-realm-slug>.local`
+>
+> This user must be assigned the `admin` realm role so `npl deploy` (invoked by `make npl-deploy`) can authenticate and execute protocol deployment successfully.
+> If this user is missing, deploy may fail even if the `paas` client is correctly configured.
+
 ## Concept
 
 ### NPL Protocol Parties
