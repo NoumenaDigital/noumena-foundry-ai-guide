@@ -77,7 +77,7 @@ KC_HOSTNAME_PORT: 11000
 Important:
 
 - Do **not** set `KC_SPI_COOKIE_DEFAULT_SAME_SITE_ATTRIBUTE` to `""`.
-- Keep `DEV_MODE=false` for engine/history.
+- Keep `DEV_MODE=false` for engine.
 
 ---
 
