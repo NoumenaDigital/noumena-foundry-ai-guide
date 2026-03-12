@@ -66,19 +66,19 @@ npl/src/main/npl-1.0.0/
    };
    ```
 
-5. **Imports**: Use `use` statements to import from other packages. The import path is `<package>.<TypeName>` or `<package>.*` — the **filename is never part of the import path**:
+5. **Imports**: Use `use` statements to import from other packages. The import path is `<package>.<TypeName>` — the **filename is never part of the import path**. Each type must be imported individually:
 
    ```npl
    // File: npl-1.0.0/orders/Order.npl
    package orders
-   
+
    // Import specific types from the support package
    use support.Address;
    use support.OrderStatus;
-   
-   // Or import everything from the support package
-   use support.*;
-   
+
+   // ❌ Wildcard imports are NOT supported:
+   // use support.*;  // Causes: mismatched input '*' expecting IDENTIFIER
+
    @api
    protocol[buyer, seller] Order(...) { ... };
    ```
@@ -148,7 +148,7 @@ use support.structs.*;           // ❌ Same mistake with wildcard
 // CORRECT: Import path is <package>.<TypeName> — the filename is irrelevant
 use support.Address;            // ✅ Imports Address from the 'support' package
 use support.OrderStatus;        // ✅ Imports OrderStatus from the 'support' package
-use support.*;                   // ✅ Imports everything from the 'support' package
+// NOTE: Wildcard imports (use support.*;) are NOT supported — import each type individually
 ```
 
 **Why this happens:** Multiple files (`structs.npl`, `enums.npl`, etc.) can live in the same directory and all declare `package support`. The filename is just for developer organization — NPL resolves imports by **package name + type name**, never by filename.
@@ -165,7 +165,8 @@ enum Status { ... };
 
 // orders/Order.npl
 package orders
-use support.*;
+use support.Item;
+use support.Status;
 @api
 protocol[owner] Order(...) { ... };
 ```
@@ -695,7 +696,28 @@ permission[owner] archive() | active {
 };
 ```
 
-### 3. Permission Signature Order
+### 3. Permission Parameters Do Not Use `var`
+
+Protocol constructor parameters use `var` (they declare mutable state), but permission action parameters do **not** — they are input arguments:
+
+```npl
+// Protocol constructor — uses var (these become protocol state)
+protocol[admin] MyProtocol(var name: Text, var startDate: LocalDate) {
+    // ...
+
+    // ❌ WRONG — permission parameters must NOT use var
+    permission[admin] rename(var newName: Text) | active {
+        name = newName;
+    };
+
+    // ✅ CORRECT — no var keyword
+    permission[admin] rename(newName: Text) | active {
+        name = newName;
+    };
+};
+```
+
+### 4. Permission Signature Order
 
 The permission signature must follow this exact order:
 

@@ -72,6 +72,13 @@ VITE_NC_KC_CLIENT_ID=<app-client-id>
 - Vite only reads env files from the frontend app folder.
 - If this file is missing, login and API config fail in browser runtime.
 
+> **Why `keycloak.localtest.me` instead of `localhost`?**
+> The Keycloak hostname must be reachable from **both** the browser and inside Docker containers.
+> The engine extracts the issuer URL from the JWT token and fetches JWKS from it to validate signatures.
+> `localhost` fails inside containers (it points to the container itself, not the host machine).
+> `keycloak.localtest.me` resolves to `127.0.0.1` from the host, and the `extra_hosts` entries in
+> docker-compose map it to the host inside containers — so the same URL works everywhere.
+
 ---
 
 ## 3) Create root `npl.yml`
@@ -90,14 +97,17 @@ structure:
 local:
   managementUrl: http://localhost:12400
   authUrl: http://keycloak.localtest.me:11000/realms/<app-realm-slug>
-  username: <deployment-username>
-  password: <deployment-password>
+  username: admin@<app-realm-slug>.local
+  password: welcome
 ```
 
 ### Why this file exists
 
 - `npl deploy` needs management endpoint, auth issuer URL, and credentials.
 - Without `npl.yml`, CLI asks for missing `username`/`password`.
+- The `username` and `password` must match a Keycloak user with admin privileges in the app realm.
+  These are provisioned by `keycloak-provisioning/terraform.tf` (see [03-KEYCLOAK-PROVISIONING.md](./03-KEYCLOAK-PROVISIONING.md)).
+  The default password (`welcome`) comes from the `KC_INITIAL_USER_PASSWORD` variable in root `.env`.
 
 ---
 
@@ -107,8 +117,19 @@ local:
 - **Only creating `frontend/.env`**  
   Root `.env` is still required for Docker Compose.
 
-- **Using `localhost` as `authUrl` in `npl.yml`**  
+- **Using `localhost` as `authUrl` in `npl.yml`**
   Use `keycloak.localtest.me` so browser, CLI, and container issuer validation stay aligned.
+  The Keycloak hostname must be reachable from both the browser and inside Docker containers
+  (the engine extracts the issuer URL from the JWT and fetches JWKS from it).
+  `localhost` fails inside containers (points to the container itself, not the host).
+
+- **`keycloak.localtest.me` does not resolve**
+  `localtest.me` is a public domain that resolves to `127.0.0.1`, but some DNS providers don't propagate it.
+  Test with: `dig keycloak.localtest.me +short` (should return `127.0.0.1`).
+  If it doesn't resolve, add to `/etc/hosts`:
+  ```
+  127.0.0.1 keycloak.localtest.me
+  ```
 
 - **Wrong deploy source in Makefile**  
   `npl deploy` must point to the parent folder containing `migration.yml` (typically `npl/src/main`).
@@ -136,7 +157,12 @@ local:
         - migrate:
             sources:
               - npl-1.0
+            rules: rules.yml
   ```
+
+  > ⚠️ **CRITICAL:** If you use party automation (`rules.yml`), you **must** include `rules: rules.yml`
+  > under the `migrate` block. Without this, party automation rules are silently ignored even though
+  > `rules.yml` is present in the deployment — leading to `R60: missing required party` errors.
 
 ---
 

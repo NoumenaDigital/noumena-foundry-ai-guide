@@ -184,6 +184,25 @@ Use this profile consistently across `.env`, frontend, and docker-compose:
 - `READ_MODEL_ALLOWED_ISSUERS` includes the same set
 - Keycloak has no explicit `KC_HOSTNAME`/`KC_HOSTNAME_PORT` and uses `--hostname-strict=false`
 
+### 4.0a `keycloak.localtest.me` Does Not Resolve
+
+**Error:** Browser shows "site can't be reached" when redirecting to `keycloak.localtest.me:11000`, or engine logs show `Connection refused` when fetching JWKS.
+
+**Cause:** `localtest.me` is a public domain that resolves to `127.0.0.1` via DNS, but some ISPs/corporate networks don't resolve it.
+
+**Diagnosis:**
+```bash
+dig keycloak.localtest.me +short          # Your DNS — should return 127.0.0.1
+dig keycloak.localtest.me @8.8.8.8 +short # Google DNS — should return 127.0.0.1
+```
+
+**Fix:** Add to `/etc/hosts`:
+```
+127.0.0.1 keycloak.localtest.me
+```
+
+**Why `keycloak.localtest.me` is needed:** The JWT token's `iss` (issuer) field must use a hostname reachable from both the browser and inside Docker containers. `localhost` fails inside containers (points to the container itself). `keycloak.localtest.me` resolves to `127.0.0.1` from the host, and the `extra_hosts` entries in docker-compose map it to the host inside containers.
+
 ### 4.1 Terraform Provisioning Fails with 409 Conflict
 
 **Error:** `Error: error sending POST request to /admin/realms: 409 Conflict` or `User exists with same email`

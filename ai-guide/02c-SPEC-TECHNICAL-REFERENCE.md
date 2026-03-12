@@ -20,6 +20,35 @@ For full NPL syntax and code-writing details, see `02-NPL-DEVELOPMENT.md`.
 | `Duration` | Time duration | Timeouts, SLAs, elapsed time |
 | `Period` | Calendar period | Subscription lengths, notice periods |
 
+### Date/Time Limitations
+
+> ⚠️ **Important:** `LocalDate` and `DateTime` have limited operations in NPL. The following are **not supported**:
+>
+> - Comparison operators (`>`, `<`, `>=`, `<=`) on `LocalDate`
+> - Date arithmetic methods (`plusMonths()`, `plusDays()`, `minusDays()`) on `LocalDate`
+> - `isAfter()` / `isBefore()` on `LocalDate`
+> - `periodOfMonths()`, `periodOfDays()` functions
+>
+> **What works:**
+> - `now()` returns the current `DateTime`
+> - `DateTime` comparison: `dateTime1.isBefore(dateTime2)`, `dateTime1.isAfter(dateTime2)`
+> - `LocalDate` to string: `localDate.toString()` (returns ISO format e.g. `"2026-03-15"`)
+> - Construction: `localDateOf(2026, 3, 15)`, `dateTimeOf(2026, 3, 15, 9, 0, 0)`
+>
+> **Recommended pattern:** Store dates as `Text` (e.g. `"2026-03-15"`) when you need to compare or compute dates. Use string comparison for date ordering (`"2026-03-15" > "2026-03-01"` works because ISO format sorts lexicographically). Only use `LocalDate`/`DateTime` when you need the type safety and don't need arithmetic.
+>
+> ```npl
+> // Example: use Text for dates that need comparison
+> var scheduledDate: Text,  // "2026-03-15" — can compare with > < operators
+> var expiryDate: Text,     // "2027-03-01" — string comparison works for ISO dates
+>
+> // Example: pre-compute penalty end date at creation time
+> permission[admin] applyPenalty(penaltyEndDate: Text) | active {
+>     require(penaltyEndDate > scheduledDate, "Penalty end must be after scheduled date");
+>     // ...
+> };
+> ```
+
 ### Collection & Wrapper Types
 
 | Type | Description | Use when... |

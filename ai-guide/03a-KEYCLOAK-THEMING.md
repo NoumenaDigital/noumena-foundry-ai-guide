@@ -2,7 +2,7 @@
 
 ## Overview
 
-> ⚠️ **MANDATORY when restyling:** Keycloak login theme customization is **REQUIRED** when the restyling phase is executed. You MUST create and configure a custom Keycloak login theme to match the application branding.
+> ⚠️ **MANDATORY:** Keycloak login theme customization is **REQUIRED** for all applications. A basic branded theme must always be created. Additional visual polish can be applied during the optional restyling phase (see [16-RESTYLING.md](./16-RESTYLING.md)).
 
 **Why important:**
 - The login page is the first impression users have of your application
